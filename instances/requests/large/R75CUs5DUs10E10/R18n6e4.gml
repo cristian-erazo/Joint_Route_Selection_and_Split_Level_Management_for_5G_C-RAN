@@ -1,0 +1,78 @@
+graph [
+  node [
+    id 0
+    label "0"
+    type 2
+    prc 2
+  ]
+  node [
+    id 1
+    label "1"
+    type 2
+    prc 4
+  ]
+  node [
+    id 2
+    label "2"
+    type 1
+    prc 4
+    ant 8
+    prb 2
+    x 101
+    y 83
+  ]
+  node [
+    id 3
+    label "3"
+    type 1
+    prc 1
+    ant 2
+    prb 6
+    x 117
+    y 46
+  ]
+  node [
+    id 4
+    label "4"
+    type 1
+    prc 4
+    ant 8
+    prb 5
+    x 42
+    y 70
+  ]
+  node [
+    id 5
+    label "5"
+    type 1
+    prc 4
+    ant 10
+    prb 6
+    x 62
+    y 53
+  ]
+  edge [
+    source 0
+    target 4
+    bandwith 970
+    delay 124
+  ]
+  edge [
+    source 0
+    target 2
+    bandwith 852
+    delay 468
+  ]
+  edge [
+    source 1
+    target 5
+    bandwith 517
+    delay 314
+  ]
+  edge [
+    source 1
+    target 3
+    bandwith 706
+    delay 423
+  ]
+]
