@@ -1,29 +1,32 @@
 graph [
   node [
     id 0
-    label "2"
+    label "0"
     x 71.0
     y 74.0
-    type 2
-    prc 19
+    type 3
   ]
   node [
     id 1
-    label "3"
+    label "1"
     x 97.0
     y 84.0
     type 3
   ]
   node [
     id 2
-    label "4"
+    label "2"
     x 21.0
     y 93.0
-    type 3
+    type 1
+	prc 17
+	ant 18
+	prb 21
+	theta 22
   ]
   node [
     id 3
-    label "5"
+    label "3"
     x 28.0
     y 61.0
     type 2
@@ -31,39 +34,36 @@ graph [
   ]
   node [
     id 4
-    label "6"
+    label "4"
     x 68.0
     y 4.0
-    type 1
-    prc 17
-    ant 18
-    prb 21
-    theta 22
+    type 3
   ]
   node [
     id 5
-    label "7"
+    label "5"
     x 66.0
     y 98.0
-    type 3
+    type 2
+	prc 19
   ]
   node [
     id 6
-    label "8"
+    label "6"
     x 92.0
     y 61.0
-    type 1
-    prc 16
-    ant 28
-    prb 19
-    theta 64
+    type 3
   ]
   node [
     id 7
-    label "9"
+    label "7"
     x 59.0
     y 80.0
-    type 3
+    type 1
+	prc 16
+	ant 28
+	prb 19
+	theta 64
   ]
   edge [
     source 0
