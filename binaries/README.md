@@ -1,7 +1,8 @@
 Joint Route Selection and Split Management for 5G C-RAN
 
 -- Usage:
-	java -jar SCRDF.jar <path to configuration file> <path to instance file> [<path to output file (gurobi only)>]
+
+java -jar SCRDF.jar "path_to_configuration_file" "path_to_instance_file" ["path_to_output_file"]
 
 -- Examples
 
@@ -21,11 +22,8 @@ Joint Route Selection and Split Management for 5G C-RAN
 		java -jar SCRDF.jar examples/config_4 examples/inst_4
 
 -- NOTE:
-	- The execution of the algorithms differs in the attributes of the configuration file, for this reason, the provided
-	examples contain different configuration files. The instance files vary because it was chosen to display the results
-	in different output files.
-	- Path files are generated during execution for each instance of the problem. In case a path file already exists, the
-	file will be loaded and the saved paths will be used during the execution of the algorithm.
-	- We use Java 1.8.
+ - The execution of the algorithms differs in the attributes of the configuration file, for this reason, the provided examples contain different configuration files. The instance files vary because it was chosen to display the results in different output files.
+ - Path files are generated during execution for each instance of the problem. In case a path file already exists, the file will be loaded and the saved paths will be used during the execution of the algorithm.
+ - We use Java 1.8.
 
 
