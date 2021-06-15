@@ -2,7 +2,7 @@ Joint Route Selection and Split Management for 5G C-RAN
 
 -- Usage:
 
-java -jar SCRDF.jar path_to_configuration_file path_to_instance_file [path_to_output_file]
+java -jar SCRDF.jar "path_to_configuration_file" "path_to_instance_file" ["path_to_output_file"]
 
 -- Examples
 
