@@ -19,10 +19,10 @@ graph [
     x 21.0
     y 93.0
     type 1
-	prc 17
-	ant 18
-	prb 21
-	theta 22
+    prc 17
+    ant 18
+    prb 21
+    theta 22
   ]
   node [
     id 3
@@ -45,7 +45,7 @@ graph [
     x 66.0
     y 98.0
     type 2
-	prc 19
+    prc 19
   ]
   node [
     id 6
@@ -60,10 +60,10 @@ graph [
     x 59.0
     y 80.0
     type 1
-	prc 16
-	ant 28
-	prb 19
-	theta 64
+    prc 16
+    ant 28
+    prb 19
+    theta 64
   ]
   edge [
     source 0
