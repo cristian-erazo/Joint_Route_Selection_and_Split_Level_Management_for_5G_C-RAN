@@ -1,5 +1,6 @@
 # Each comment line is marked with '#'
 # to use a random seed use -1, otherwise, set the value of the seed.
+# Note: the exhaustive algorithm is deterministic, so there is no need to set a value for the seed parameter.
 seed -1
 # Show run information. If you don't want messages to be displayed on the screen, then comment (or remove) the verbose parameter.
 verbose
