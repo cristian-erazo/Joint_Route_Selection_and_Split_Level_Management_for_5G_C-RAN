@@ -1,0 +1,19 @@
+# Each comment line is marked with '#'
+# to use a random seed use -1, otherwise, set the value of the seed.
+seed -1
+# Show run information. If you don't want messages to be displayed on the screen, then comment (or remove) the verbose parameter.
+verbose
+# Select the algorithm to run: 1. Exhaustive, 2. Greedy, 3. Genetic.
+algorithm 3
+# The evolutionary algorithm with random initialization (EA^rnd) is chosen by setting the initialization parameter to 0.
+initialization 0
+# For genetic algorithms, we can modify various parameters, including the number of generations (or number of iterations).
+iterations 300
+# Another parameter that we can vary corresponds to the number of genes to modify during the mutation process (the value must be a positive integer).
+mutation 3
+# The parameter of percentage of crossed genes allows us to control the quantity of genes exchanged during the process of crossing the individuals (solutions).
+crossover 0.5
+# The ranking parameter allows us to determine the number of solutions to be compared in case the solutions do not meet the restrictions.
+ranking 0.45
+# Population refers to the number of individuals (or solutions) that will be selected during each generation.
+population 100

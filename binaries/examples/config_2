@@ -1,0 +1,8 @@
+# Each comment line is marked with '#'
+# to use a random seed use -1, otherwise, set the value of the seed.
+# Note: our greedy algorithm is deterministic, therefore the value for the seed will not be taken into account.
+seed -1
+# Show run information. If you don't want messages to be displayed on the screen, then comment (or remove) the verbose parameter.
+verbose
+# Select the algorithm to run: 1. Exhaustive, 2. Greedy, 3. Genetic.
+algorithm 2

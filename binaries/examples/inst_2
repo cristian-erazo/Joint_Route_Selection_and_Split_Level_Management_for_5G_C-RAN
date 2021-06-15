@@ -1,0 +1,5 @@
+network ./examples/network/Gn3e3.gml
+request ./examples/requests/R1CUs1DUs2E2/
+paths ./examples/paths/Gn3e3.gml.k3.paths
+output ./examples/results/gre_alg
+K 3
