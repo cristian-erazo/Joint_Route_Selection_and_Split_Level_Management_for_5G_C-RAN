@@ -24,6 +24,7 @@ java -jar SCRDF.jar "path_to_configuration_file" "path_to_instance_file" ["path_
 -- NOTE:
  - The execution of the algorithms differs in the attributes of the configuration file, for this reason, the provided examples contain different configuration files. The instance files vary because it was chosen to display the results in different output files.
  - Path files are generated during execution for each instance of the problem. In case a path file already exists, the file will be loaded and the saved paths will be used during the execution of the algorithm.
+ - We use the Gurobi solver for Java. You need to download the Gurobi library in the lib folder in order to properly run the examples.
  - We use Java 1.8.
 
 
