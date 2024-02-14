@@ -28,4 +28,8 @@ public class Request {
      * List of all links between virtual nodes.
      */
     public List<VirtualLink> virtualLinks;
+    /**
+     * Validates if the request has been accepted (true) or rejected (false).
+     */
+    public boolean accepted;
 }

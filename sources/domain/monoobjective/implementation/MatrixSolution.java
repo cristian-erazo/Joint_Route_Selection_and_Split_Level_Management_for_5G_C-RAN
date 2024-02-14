@@ -1,6 +1,8 @@
 package domain.monoobjective.implementation;
 
+import domain.Solution;
 import domain.monoobjective.MonoObjectiveSolution;
+import domain.util.Tools;
 import java.util.Arrays;
 
 /**
@@ -12,15 +14,15 @@ public class MatrixSolution implements MonoObjectiveSolution<Integer[], Double> 
     /**
      * The centralization level.
      */
-    private Double objectiveValue;
+    protected Double objectiveValue;
     /**
      * The number of resources requests.
      */
-    private final int n;
+    protected final int n;
     /**
      * The number of decisions to be made.
      */
-    private final int m;
+    protected final int m;
     /**
      * The configuration for the network.
      */
@@ -45,6 +47,31 @@ public class MatrixSolution implements MonoObjectiveSolution<Integer[], Double> 
      * The iteration where the solution was made.
      */
     public long it;
+    /**
+     * The solution quality.
+     */
+    public double quality;
+
+    public MatrixSolution(boolean[] accepted, int nAccepted, Integer[][] data, double objectiveValue, long it, double gn, double quality) {
+        this.it = it;
+        this.gn = gn;
+        this.data = data;
+        this.n = data.length;
+        this.isValid = gn == 0;
+        this.quality = quality;
+        this.m = data[0].length;
+        this.accepted = accepted;
+        this.nAccepted = nAccepted;
+        this.objectiveValue = objectiveValue;
+    }
+
+    public MatrixSolution(int n, int m, double objectiveValue, long it) {
+        this.n = n;
+        this.m = m;
+        this.it = it;
+        data = new Integer[n][m];
+        this.objectiveValue = objectiveValue;
+    }
 
     /**
      *
@@ -121,11 +148,12 @@ public class MatrixSolution implements MonoObjectiveSolution<Integer[], Double> 
     }
 
     @Override
-    public MatrixSolution copy() {
-        MatrixSolution copy = new MatrixSolution(n, m);
+    public Solution copy() {
+        MatrixSolution copy = new MatrixSolution(n, m, objectiveValue, it);
         for (int i = 0; i < n; i++) {
             System.arraycopy(data[i], 0, copy.data[i], 0, m);
         }
+        copy.quality = quality;
         copy.gn = gn;
         copy.isValid = isValid;
         copy.nAccepted = nAccepted;
@@ -133,7 +161,6 @@ public class MatrixSolution implements MonoObjectiveSolution<Integer[], Double> 
             copy.accepted = new boolean[accepted.length];
             System.arraycopy(accepted, 0, copy.accepted, 0, accepted.length);
         }
-        copy.objectiveValue = objectiveValue;
         return copy;
     }
 
@@ -150,12 +177,12 @@ public class MatrixSolution implements MonoObjectiveSolution<Integer[], Double> 
             for (int j = 0; j < m; j++) {
                 sb.append(String.format("%d", data[i][j]));
                 if (j + 1 < m) {
-                    sb.append(' ');
+                    sb.append(',');
                 }
             }
             sb.append("]");
         }
-        return String.format("%b f(x): %f Accepted: %d Rejected: %d %s", isValid, objectiveValue, acc, n - acc, sb.toString());
+        return String.format("[%d]%b %.0ff(x): %f Accepted: %d Rejected: %d Q(x): %f@%s", it, isValid, gn, objectiveValue, acc, n - acc, quality, sb.toString());
     }
 
     @Override
@@ -164,23 +191,35 @@ public class MatrixSolution implements MonoObjectiveSolution<Integer[], Double> 
         if (o.n != n) {
             return false;
         }
-        for (int i = 0; i < data.length; i++) {
-            //System.out.println(data[i].length + " " + o.data[i].length);
-            if (accepted == null && o.accepted == null) {
+        if (accepted == null || o.accepted == null) {
+            for (int i = 0; i < data.length; i++) {
                 if (!Arrays.equals(data[i], o.data[i])) {
                     return false;
                 }
-            } else if (accepted[i] != o.accepted[i] || !Arrays.equals(data[i], o.data[i])) {
-                return false;
+            }
+        } else {
+            for (int i = 0; i < data.length; i++) {
+                if (accepted[i] != o.accepted[i]) {
+                    return false;
+                } else if (accepted[i]) {
+                    if (!Arrays.equals(data[i], o.data[i])) {
+                        return false;
+                    }
+                }
             }
         }
         return true;
     }
 
     @Override
-    public int compareTo(MonoObjectiveSolution<Integer[], Double> o) {
+    public int compareTo(Solution obj) {
+        MonoObjectiveSolution<Integer[], Double> o = (MonoObjectiveSolution<Integer[], Double>) obj;
         if (getObjective() != null && o.getObjective() != null) {
-            return o.getObjective().compareTo(getObjective());
+            if (Tools.isMaximization) {
+                return o.getObjective().compareTo(getObjective());
+            } else {
+                return getObjective().compareTo(o.getObjective());
+            }
         } else {
             throw new NullPointerException("The objective is uninitialized.");
         }

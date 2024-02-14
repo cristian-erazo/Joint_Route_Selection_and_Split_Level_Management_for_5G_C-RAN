@@ -9,10 +9,8 @@ import java.util.Comparator;
  */
 public class PathComparator implements Comparator<PathSolution> {
 
-    //private final double MAX = Integer.MAX_VALUE - 1;
-
     @Override
     public int compare(PathSolution p, PathSolution q) {
-        return Double.compare(/*p.getMinBw() * */p.getDelay(),/* q.getMinBw() * */ q.getDelay());
+        return Double.compare(-1 * p.getMinBw() /* p.getDelay()*/, -1 * q.getMinBw() /* q.getDelay()*/);
     }
 }

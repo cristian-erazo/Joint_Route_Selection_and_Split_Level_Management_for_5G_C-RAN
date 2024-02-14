@@ -23,6 +23,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  *
@@ -31,8 +32,9 @@ import java.util.Random;
 public class Tools implements Serializable {
 
     private static Tools instance = null;
-    public static final String VERSION = "6.0.0";
+    public static final String VERSION = "7.3.1";
 
+    public static int K = 0;
     public static int FxId = 0;
     public static int init = 1;
     public static int crxId = 0;
@@ -48,13 +50,21 @@ public class Tools implements Serializable {
     public static boolean fitAll = false;
     public static boolean noTime = false;
     public static final int INF = 999999;
+    public static int pathsComparatorId = 1;
     public static double counterWeight = 1.0;
     public static boolean noSolution = false;
+    public static boolean printFront = false;
+    public static int cuNodeComparatorId = 1;
+    public static int duNodeComparatorId = 1;
+    public static int vDuNodeComparatorId = 1;
+    public static int vCuNodeComparatorId = 1;
+    public static int requestComparatorId = 1;
+    public static double MAX_VALUE = 9999.9999;
     public static boolean isMaximization = true;
-    public static int K;
+    public static boolean runOnlineVersion = false;
 
     private int E;
-    private int seed;
+    private long seed;
     private Random rand;
     private long nPaths;
     private Node[] nodes;
@@ -67,7 +77,6 @@ public class Tools implements Serializable {
     private List<PathSolution>[][] paths;
 
     private Tools() {
-        this.K = 0;
         this.E = -1;
         this.seed = -1;
         this.nPaths = 0;
@@ -97,9 +106,9 @@ public class Tools implements Serializable {
      * random seed is set.
      * @return The reference of the generator.
      */
-    public synchronized Random setSeed(int seed) {
+    public synchronized Random setSeed(long seed) {
         if (seed < 1) {
-            this.seed = (new Random()).nextInt(Integer.MAX_VALUE) + 1;
+            this.seed = ThreadLocalRandom.current().nextInt(Integer.MAX_VALUE) + 1;
         } else {
             this.seed = seed;
         }
@@ -122,7 +131,7 @@ public class Tools implements Serializable {
      *
      * @return
      */
-    public int getSeed() {
+    public long getSeed() {
         return seed;
     }
 
@@ -171,7 +180,7 @@ public class Tools implements Serializable {
         if (a == b) {
             throw new ArithmeticException("The input values must be different.");
         }
-        return a < b ? (b - a + 1) * getNextDouble() + a : (a - b + 1) * getNextDouble() + b;
+        return a < b ? (b - a + 1.) * getNextDouble() + a : (a - b + 1.) * getNextDouble() + b;
     }
 
     public boolean loadGraph(File f, double g1, double g2, double g3) {
@@ -212,7 +221,7 @@ public class Tools implements Serializable {
                             }
                         }
                         if (ECHO) {
-                            System.out.println("Graph loaded !");
+                            System.out.println("Graph loaded!!");
                             System.out.println(String.format("#Nodes: %d, #Edges: %d", n, E));
                         }
                         br.close();
@@ -220,8 +229,6 @@ public class Tools implements Serializable {
                     } catch (Exception ex) {
                         ex.printStackTrace(System.out);
                     }
-                } else {
-                    System.out.println("Upssss");
                 }
             }
         }
@@ -429,6 +436,14 @@ public class Tools implements Serializable {
         return problemInstance.isFullyRepresentated() == (matrixSolution.getM() == problemInstance.maxVirtualCUs + 3 * problemInstance.maxVirtualDUs);
     }
 
+    public void setMaxVirtualCUs(int maxVirtualCUs) {
+        this.maxVirtualCUs = maxVirtualCUs;
+    }
+
+    public void setMaxVirtualDUs(int maxVirtualDUs) {
+        this.maxVirtualDUs = maxVirtualDUs;
+    }
+
     public int getMaxVirtualCUs() {
         return maxVirtualCUs;
     }
@@ -437,7 +452,7 @@ public class Tools implements Serializable {
         return maxVirtualDUs;
     }
 
-    private boolean loadRequest(File file, Request request) {
+    public boolean loadRequest(File file, Request request) {
         char[] name = file.getName().toCharArray();
         int[] data = {file.getName().indexOf("n") + 1, -1, -1};
         int i, nNodos, j, nEnlaces;
@@ -542,7 +557,7 @@ public class Tools implements Serializable {
         double bandwith = -1, delay = -1;
         VirtualNode destination = null, source = null;
         int values = 4, id;
-        if (nodes == null) {
+        if (request.vNodes == null) {
             return false;
         }
         while ((line = br.readLine()) != null && values > 0) {
@@ -730,6 +745,18 @@ public class Tools implements Serializable {
         return (n * sq - s * s) / (n * n);
     }
 
+    public void setNodes(Node[] nodes) {
+        this.nodes = nodes;
+    }
+
+    public void setDUs(List<Node> DUs) {
+        this.DUs = DUs;
+    }
+
+    public void setCUs(List<Node> CUs) {
+        this.CUs = CUs;
+    }
+
     public void setPaths(List<PathSolution>[][] paths) {
         this.paths = paths;
     }
@@ -753,6 +780,10 @@ public class Tools implements Serializable {
     public List<Node> getDUs() {
         return DUs;
 
+    }
+
+    void setRequests(Request[] requests) {
+        this.requests = requests;
     }
 }
 

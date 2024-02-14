@@ -11,6 +11,6 @@ public class VirtualLinkComparator implements Comparator<VirtualLink> {
 
     @Override
     public int compare(VirtualLink v, VirtualLink w) {
-        return Double.compare(-1 * v.bw * v.maxDelay, -1 * w.bw * w.maxDelay);
+        return Double.compare(-1 * (v.bw + v.maxDelay), -1 * (w.bw + w.maxDelay));
     }
 }

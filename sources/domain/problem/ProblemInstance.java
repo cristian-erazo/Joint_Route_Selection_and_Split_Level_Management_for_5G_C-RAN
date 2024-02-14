@@ -9,6 +9,7 @@ import domain.problem.graph.Node;
 import domain.problem.virtual.Request;
 import domain.problem.virtual.VirtualLink;
 import domain.problem.virtual.VirtualNode;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.TreeSet;
@@ -140,6 +141,7 @@ public class ProblemInstance {
                     types[i][j++] = 1;//vCU
                     for (Integer vdu : vCU.nears) {//obtener los nodos DU a los que se conecta (cada CU se conecta por un enlace)
                         types[i][j++] = 2;//vDU
+                        request.vLinks[vdu][vCU.nodePosition].indx = j;
                         types[i][j++] = 3;//path
                         types[i][j++] = 4;//split
                     }
@@ -154,6 +156,7 @@ public class ProblemInstance {
                 j = 0;
                 for (VirtualNode vCU : request.vCUs) {//para cada nodo vCU, asignar la posicion a la que le corresponde en la matriz
                     for (Integer vdu : vCU.nears) {//obtener los nodos DU a los que se conecta (cada CU se conecta por un enlace)
+                        request.vLinks[vdu][vCU.nodePosition].indx = j;
                         types[i][j++] = 3;//path
                         types[i][j++] = 4;//split
                     }
@@ -213,7 +216,7 @@ public class ProblemInstance {
      * @param DU
      * @return
      */
-    public static boolean validateAssingament(VirtualNode vDU, Node DU) {
+    public static boolean validateAssignament(VirtualNode vDU, Node DU) {
         return distance(vDU.location, DU.location) <= DU.theta && DU.ant >= (vDU.ant + DU.usedANT) && DU.prc >= (vDU.prc + DU.usedPRC) && DU.prb >= (vDU.prb + DU.usedPRB);
     }
 
@@ -293,6 +296,50 @@ public class ProblemInstance {
         tDUs.clear();
     }
 
+    public void clearRequest(Request request, boolean clearDUs, boolean clearCUs, boolean clearPaths) {
+        if (clearPaths) {
+            for (VirtualLink vLink : request.virtualLinks) {
+                VirtualNode vDU = request.vNodes[vLink.destination], vCU = request.vNodes[vLink.source];
+                if (vLink.indxPath != -1 && vDU.indxNode != -1 && vCU.indxNode != -1) {
+                    for (Link link : mPaths[vDU.indxNode][vCU.indxNode].get(vLink.indxPath).getLinks()) {
+                        link.usedBw -= splits[1].bw;
+                        if (link.usedBw > 0) {
+                            link.usedBw = 0;
+                        }
+                    }
+                }
+            }
+        }
+        if (clearDUs) {
+            for (VirtualNode vDU : request.vDUs) {
+                if (vDU.indxNode != -1) {
+                    nodes[vDU.indxNode].usedPRC -= vDU.prc;
+                    if (nodes[vDU.indxNode].usedPRC < 0) {
+                        nodes[vDU.indxNode].usedPRC = 0;
+                    }
+                    nodes[vDU.indxNode].usedPRB -= vDU.prb;
+                    if (nodes[vDU.indxNode].usedPRB < 0) {
+                        nodes[vDU.indxNode].usedPRB = 0;
+                    }
+                    nodes[vDU.indxNode].usedANT -= vDU.ant;
+                    if (nodes[vDU.indxNode].usedANT < 0) {
+                        nodes[vDU.indxNode].usedANT = 0;
+                    }
+                }
+            }
+        }
+        if (clearCUs) {
+            for (VirtualNode vCU : request.vCUs) {
+                if (vCU.indxNode != -1) {
+                    nodes[vCU.indxNode].usedPRC -= vCU.prc;
+                    if (nodes[vCU.indxNode].usedPRC < 0) {
+                        nodes[vCU.indxNode].usedPRC = 0;
+                    }
+                }
+            }
+        }
+    }
+
     /**
      * This function validates all problem constraints. Also, it evaluates the
      * allocations on physical resources.
@@ -320,8 +367,9 @@ public class ProblemInstance {
                     }
                     if (isFullyRepresentated()) {//El indice corresponde a las rutas relativas
                         //[CU|DU|Fx|P|DU|Fx|P|CU|DU|Fx|P]
-                        count += updateCU(q, nodes[solution.data[q][vCU.indx]], vCU, solution) + updateDU(q, nodes[solution.data[q][vDU.indx]], vDU, solution);
+                        count += updateCU(q, nodes[solution.data[q][vCU.indx]], vCU, vDU, solution) + updateDU(q, nodes[solution.data[q][vDU.indx]], vDU, solution);
                         if (mPaths[vDU.indxNode][vCU.indxNode] != null) {
+                            vLink.indxPath = solution.data[q][vDU.indx + pathPosition];
                             if (solution.data[q][vDU.indx + pathPosition] < mPaths[vDU.indxNode][vCU.indxNode].size()) {
                                 count += updatePath(q, vDU, vLink, splits[solution.data[q][vDU.indx + splitPosition]], solution, mPaths[vDU.indxNode][vCU.indxNode].get(solution.data[q][vDU.indx + pathPosition]));
                             } else {
@@ -344,7 +392,8 @@ public class ProblemInstance {
                                 DU = CU;
                                 CU = path.getNodesOfPath().get(0);
                             }
-                            count += updateDU(q, DU, vDU, solution) + updateCU(q, CU, vCU, solution) + updatePath(q, vDU, vLink, splits[solution.data[q][vDU.indx + splitPosition]], solution, path);
+                            vLink.indxPath = solution.data[q][vDU.indx + pathPosition];
+                            count += updateDU(q, DU, vDU, solution) + updateCU(q, CU, vCU, vDU, solution) + updatePath(q, vDU, vLink, splits[solution.data[q][vDU.indx + splitPosition]], solution, path);
                         } else {
                             solution.isValid = false;
                             isValid[q][vDU.indx + pathPosition] = false;
@@ -352,7 +401,7 @@ public class ProblemInstance {
                         }
                     }
                 }
-                if (tCUs.size() != requests[q].vCUs.size() || tDUs.size() != requests[q].vDUs.size()) {
+                if (solution.isValid && (tCUs.size() != requests[q].vCUs.size() || tDUs.size() != requests[q].vDUs.size())) {
                     solution.isValid = false;
                 }
                 if (!tCUs.isEmpty()) {
@@ -369,18 +418,19 @@ public class ProblemInstance {
         solution.setnAccepted(requests.length - nRejected);
         if (solution.getnAccepted() == 0) {
             solution.isValid = false;
+            count++;// no CU pools !!
         }
         return count;
     }
 
     public int updatePath(int q, VirtualNode vDU, VirtualLink vLink, Flow split, MatrixSolution solution, PathSolution path) {
         int value = 0;
-        if (!validateAssignament(vLink, split)) {
+        if (!ProblemInstance.validateAssignament(vLink, split)) {
             solution.isValid = false;
             isValid[q][vDU.indx + splitPosition] = false;
             value++;
         }
-        if (!validateAssignament(path, split, vLink)) {
+        if (!ProblemInstance.validateAssignament(path, split, vLink)) {
             solution.isValid = false;
             if (path.getDelay() > vLink.maxDelay) {
                 isValid[q][vDU.indx + pathPosition] = false;
@@ -413,7 +463,7 @@ public class ProblemInstance {
             value++;
         } else if (vDU.indxNode == -1) {
             vDU.indxNode = DU.nodePosition;
-            if (!validateAssingament(vDU, DU)) {
+            if (!validateAssignament(vDU, DU)) {
                 solution.isValid = false;
                 isValid[q][vDU.indx] = false;
                 value++;
@@ -435,23 +485,34 @@ public class ProblemInstance {
         return value;
     }
 
-    public int updateCU(int q, Node CU, VirtualNode vCU, MatrixSolution solution) {
+    public int updateCU(int q, Node CU, VirtualNode vCU, VirtualNode vDU, MatrixSolution solution) {
         int value = 0;
-        boolean wasAdded = tCUs.contains(CU);
-        if (vCU.indxNode == -1 && wasAdded) {
+        if (vCU.indxNode == -1 && tCUs.contains(CU)) {
             vCU.indxNode = CU.nodePosition;
             solution.isValid = false;
-            isValid[q][vCU.indx] = false;
+            if (isFullyRepresentated()) {
+                isValid[q][vCU.indx] = false;
+            } else {
+                isValid[q][vDU.indx] = false;
+            }
             value++;
         } else if (vCU.indxNode != -1 && vCU.indxNode != CU.nodePosition) {
             solution.isValid = false;
-            isValid[q][vCU.indx] = false;
+            if (isFullyRepresentated()) {
+                isValid[q][vCU.indx] = false;
+            } else {
+                isValid[q][vDU.indx] = false;
+            }
             value++;
         } else if (vCU.indxNode == -1) {
             vCU.indxNode = CU.nodePosition;
-            if (!validateAssignament(CU, vCU)) {
+            if (!ProblemInstance.validateAssignament(CU, vCU)) {
                 solution.isValid = false;
-                isValid[q][vCU.indx] = false;
+                if (isFullyRepresentated()) {
+                    isValid[q][vCU.indx] = false;
+                } else {
+                    isValid[q][vDU.indx] = false;
+                }
                 value++;
             }
             CU.usedPRC += vCU.prc;
@@ -461,5 +522,137 @@ public class ProblemInstance {
         }
         tCUs.add(CU);
         return value;
+    }
+
+    public static void consumeResources(ProblemInstance instance, MatrixSolution solution, int q) {
+        VirtualNode vDU, vCU;
+        PathSolution path;
+        Node CU, DU;
+        for (VirtualLink vLink : instance.requests[q].virtualLinks) {
+            vDU = instance.requests[q].vNodes[vLink.source];
+            vCU = instance.requests[q].vNodes[vLink.destination];
+            if (vDU.nodeType == 2) {
+                vDU = vCU;
+                vCU = instance.requests[q].vNodes[vLink.source];
+            }
+            if (instance.isFullyRepresentated()) {//El indice corresponde a las rutas relativas
+                //[CU|DU|Fx|P|DU|Fx|P|CU|DU|Fx|P]
+                instance.updateCU(q, instance.nodes[solution.data[q][vCU.indx]], vCU, vDU, solution);
+                instance.updateDU(q, instance.nodes[solution.data[q][vDU.indx]], vDU, solution);
+                if (instance.mPaths[vDU.indxNode][vCU.indxNode] != null) {
+                    if (solution.data[q][vDU.indx + instance.pathPosition] < instance.mPaths[vDU.indxNode][vCU.indxNode].size()) {
+                        vLink.indxPath = solution.data[q][vDU.indx + instance.pathPosition];
+                        instance.updatePath(q, vDU, vLink, instance.splits[solution.data[q][vDU.indx + instance.splitPosition]], solution, instance.mPaths[vDU.indxNode][vCU.indxNode].get(solution.data[q][vDU.indx + instance.pathPosition]));
+                    } else {
+                        solution.isValid = false;
+                    }
+                } else {
+                    solution.isValid = false;
+                }
+            } else {//El indice corresponde al identificador de ruta (tanto las DUs como las CUs apuntan a la posicion de la ruta en la representacion)
+                //[P|Fx|P|Fx|P|Fx]
+                if (solution.data[q][vDU.indx] < instance.mPaths[0][0].size()) {
+                    path = instance.mPaths[0][0].get(solution.data[q][vDU.indx]);
+                    DU = path.getNodesOfPath().get(0);
+                    CU = path.getNodesOfPath().get(path.getLength() - 1);
+                    if (CU.nodeType == 1 || DU.nodeType == 2) {//si el nodo CU de la lista es un DU, intercambiar
+                        DU = CU;
+                        CU = path.getNodesOfPath().get(0);
+                    }
+                    instance.updateDU(q, DU, vDU, solution);
+                    instance.updateCU(q, CU, vCU, vDU, solution);
+                    vLink.indxPath = solution.data[q][vDU.indx + instance.pathPosition];
+                    instance.updatePath(q, vDU, vLink, instance.splits[solution.data[q][vDU.indx + instance.splitPosition]], solution, path);
+                } else {
+                    solution.isValid = false;
+                }
+            }
+        }
+    }
+
+    public ProblemInstance copySubInstance() {
+        Node[] newNodes = new Node[nodes.length];
+        Link[][] newLinks = new Link[nodes.length][nodes.length];
+        List<PathSolution>[][] newPaths;
+        if (isFullyRepresentated()) {
+            newPaths = new ArrayList[nodes.length][nodes.length];
+        } else {
+            newPaths = new ArrayList[1][1];
+        }
+        List<Node> newDUs = new ArrayList<>(), newCUs = new ArrayList<>();
+        for (int i = 0; i < nodes.length; i++) {
+            newNodes[i] = nodes[i].copySubInstance();//copia el nodo con la capacidad disponible
+            switch (newNodes[i].nodeType) {
+                case 4:
+                    newCUs.add(newNodes[i]);
+                case 1:
+                    newDUs.add(newNodes[i]);
+                    break;
+                case 2:
+                    newCUs.add(newNodes[i]);
+                    break;
+            }
+        }
+        for (int i = 0; i < nodes.length - 1; i++) {
+            for (int j = i + 1; j < nodes.length; j++) {
+                if (links[i][j] != null) {
+                    newLinks[i][j] = links[i][j].copySubInstance();//copia el enlace con la capacidad disponible
+                    newLinks[j][i] = newLinks[i][j];
+                }
+            }
+        }
+        if (isFullyRepresentated()) {
+            for (int i = 0; i < nodes.length; i++) {
+                for (int j = i + 1; j < nodes.length; j++) {
+                    if (mPaths[i][j] != null) {
+                        if (newPaths[i][j] == null) {
+                            newPaths[i][j] = new ArrayList<>();
+                            newPaths[j][i] = newPaths[i][j];
+                        }
+                        for (PathSolution pathSolution : mPaths[i][j]) {
+                            newPaths[i][j].add(copyPathSolutionSubInstance(pathSolution, newLinks, newNodes));
+                        }
+                    }
+                }
+            }
+        } else {
+            if (mPaths[0][0] != null) {
+                if (newPaths[0][0] == null) {
+                    newPaths[0][0] = new ArrayList<>();
+                }
+                for (PathSolution pathSolution : mPaths[0][0]) {
+                    newPaths[0][0].add(copyPathSolutionSubInstance(pathSolution, newLinks, newNodes));
+                }
+            }
+        }
+        return new ProblemInstance(newNodes, newLinks, splits, newPaths, requests, newCUs, newDUs, nLinks, maxVirtualDUs, maxVirtualCUs, step);
+    }
+
+    private PathSolution copyPathSolutionSubInstance(PathSolution pathSolution, Link[][] newLinks, Node[] newNodes) {
+        PathSolution newPath = new PathSolution();
+        for (Link link : pathSolution.getLinks()) {
+            newPath.addLinkToPath(newLinks[link.source][link.destination]);
+        }
+        for (Node node : pathSolution.getNodesOfPath()) {
+            newPath.addNodeToPath(newNodes[node.nodePosition]);
+        }
+        return newPath;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        for (Node node : nodes) {
+            if (node.nodeType == 2) {
+                sb.append(String.format("%s ", node));
+            }
+        }
+        sb.append("| ");
+        for (Node node : nodes) {
+            if (node.nodeType == 1) {
+                sb.append(String.format("%s ", node));
+            }
+        }
+        return String.format("< %s>", sb.toString());
     }
 }

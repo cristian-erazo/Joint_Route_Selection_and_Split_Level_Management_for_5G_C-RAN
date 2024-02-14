@@ -14,7 +14,7 @@ import java.util.Random;
 public abstract class Metaheuristic<T extends MonoObjectiveSolution> implements MonoObjectiveAlgorithm<Integer[], Double> {
 
     /**
-     *
+     * Random number generator
      */
     protected Random rand;
     /**
@@ -26,7 +26,7 @@ public abstract class Metaheuristic<T extends MonoObjectiveSolution> implements 
      */
     protected final ProblemInstance instance;
     /**
-     * The objective function.
+     * The objective/fitness function.
      */
     protected final EvaluationFunction<Double, T> fx;
     /**
@@ -57,30 +57,4 @@ public abstract class Metaheuristic<T extends MonoObjectiveSolution> implements 
 
     @Override
     public abstract MonoObjectiveSolution<Integer[], Double> run();
-
-    /**
-     * This function determines if the solution "a" is better than the solution
-     * "b".
-     *
-     * @param a The solution a.
-     * @param b The solution b.
-     * @return true if the solution "a" has a better objective function value
-     * than the solution "b". false otherwise.
-     */
-    protected boolean isBetter(T a, T b) {
-        double va, vb;
-        va = fx.evaluate(a) + (a.getGn() * a.getGn());
-        vb = fx.evaluate(b) + (b.getGn() * b.getGn());
-        if (fx.isMaximization()) {
-            if (a.getGn() > 0) {
-                va *= -1.;
-            }
-            if (b.getGn() > 0) {
-                vb *= -1.;
-            }
-            return va > vb;
-        } else {
-            return va < vb;
-        }
-    }
 }

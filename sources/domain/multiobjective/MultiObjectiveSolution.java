@@ -8,7 +8,7 @@ import domain.Solution;
  * @param <E> Data type.
  * @param <T> Objective type.
  */
-public interface MultiObjectiveSolution<E, T> extends Solution<E>, Comparable<MultiObjectiveSolution<E, T>> {
+public interface MultiObjectiveSolution<E, T extends Comparable> extends Solution<E>, Comparable<Solution> {
 
     /**
      *
@@ -35,8 +35,16 @@ public interface MultiObjectiveSolution<E, T> extends Solution<E>, Comparable<Mu
      */
     public void setObjective(int pos, T val);
 
-    @Override
-    public int compareTo(MultiObjectiveSolution<E, T> o);
+    /**
+     *
+     * @param s
+     * @param isMaximization
+     * @return
+     */
+    public int dominates(Solution s, boolean isMaximization);
 
-    public MultiObjectiveSolution copy();
+    @Override
+    public int compareTo(Solution o);
+
+    public Solution copy();
 }

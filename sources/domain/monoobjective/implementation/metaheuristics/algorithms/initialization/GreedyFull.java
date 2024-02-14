@@ -3,7 +3,7 @@ package domain.monoobjective.implementation.metaheuristics.algorithms.initializa
 import domain.monoobjective.implementation.MatrixSolution;
 import domain.monoobjective.implementation.greedy.comparators.NodeComparator;
 import domain.monoobjective.implementation.greedy.comparators.NodeDistanceComparator;
-import domain.monoobjective.implementation.greedy.comparators.NodeResourcesComparator;
+import domain.monoobjective.implementation.greedy.comparators.NodeFittestResourcesComparator;
 import domain.monoobjective.implementation.greedy.comparators.PathComparator;
 import domain.monoobjective.implementation.greedy.comparators.RequestComparator;
 import domain.monoobjective.implementation.greedy.comparators.VirtualNodeComparator;
@@ -26,39 +26,33 @@ import java.util.TreeSet;
 /**
  *
  * @author cristian.erazo@cinvestav.mx
+ * @param <T>
  */
-public class GreedyFull implements Initialization<MatrixSolution> {
+public class GreedyFull<T extends MatrixSolution> extends InitializationApproach<T> {
 
     private final Comparator<PathSolution> pathsComparator;
     private final Comparator<Request> requestsComparator;
     private final Comparator<VirtualNode> vCUsComparator;
     private final Comparator<VirtualNode> vDUsComparator;
     private final NodePositionComparator naturalOrder;
-    private final Comparator<Node> CUsComparator;
+    private final NodeComparator CUsComparator;
     private final NodeComparator DUsComparator;
-    private final ProblemInstance instance;
-    private TreeSet<Node> CUs;
-    private TreeSet<Node> DUs;
-    private int popSize;
-    private Random rand;
 
     public GreedyFull(ProblemInstance instance, int popSize, Random rand) {
+        super(rand, instance, popSize);
         vDUsComparator = vCUsComparator = new VirtualNodeComparator();
-        CUsComparator = new NodeResourcesComparator();
+        CUsComparator = new NodeFittestResourcesComparator();
         requestsComparator = new RequestComparator();
         DUsComparator = new NodeDistanceComparator();
         naturalOrder = new NodePositionComparator();
         pathsComparator = new PathComparator();
-        this.instance = instance;
-        this.popSize = popSize;
-        this.rand = rand;
     }
 
     @Override
-    public List<MatrixSolution> run() {
+    public List<T> run() {
         if (popSize > 0) {
             int n = instance.requests.length, m = instance.maxVirtualDUs * instance.step + instance.maxVirtualCUs, j;
-            List<MatrixSolution> population = new ArrayList<>();
+            List<T> population = new ArrayList<>();
             List<Request> requestsList = Arrays.asList(instance.requests);
             List<Flow> splits = Arrays.asList(instance.splits);
             List<Flow> functionalSplits = new ArrayList<>(splits);
@@ -66,10 +60,10 @@ public class GreedyFull implements Initialization<MatrixSolution> {
             List<Node> CUsList = new ArrayList<>();
             DUsList.addAll(instance.DUs);
             CUsList.addAll(instance.CUs);
-            CUs = new TreeSet<>();
-            DUs = new TreeSet<>();
+            tCUs = new TreeSet<>();
+            tDUs = new TreeSet<>();
             for (int k = 0; k < popSize;) {
-                MatrixSolution init = new MatrixSolution(n, m);
+                T init = initializeSolution(n, m);
                 init.accepted = new boolean[n];
                 for (int i = 0; i < instance.requests.length; i++) {//para cada peticion, asignar el orden inicial y las posiciones de la matriz
                     j = 0;//cuenta las posiciones de la columna para asignarla al grafo
@@ -92,7 +86,7 @@ public class GreedyFull implements Initialization<MatrixSolution> {
                 } else {
                     random(init, requestsList, splits, DUsList, CUsList, functionalSplits);
                 }
-                //if (!population.contains(init)) {
+                //if (!population.contains(initializeSolution)) {
                 population.add(init);
                 k++;
                 //}
@@ -102,7 +96,7 @@ public class GreedyFull implements Initialization<MatrixSolution> {
         return null;
     }
 
-    private boolean greedy(MatrixSolution init, List<Request> requestsList, List<Node> DUsList, List<Node> CUsList) {
+    private boolean greedy(T init, List<Request> requestsList, List<Node> DUsList, List<Node> CUsList) {
         Link minLink;
         boolean isValid;
         int nAccepted = 0, k, splitIndx;
@@ -117,9 +111,10 @@ public class GreedyFull implements Initialization<MatrixSolution> {
             isValid = true;
             for (VirtualNode vCU : request.vCUs) {//asignar CUs fisicos
                 vCU.indxNode = -1;
+                CUsComparator.setBase(vCU);
                 Collections.sort(CUsList, CUsComparator);
                 for (Node CU : CUsList) {
-                    if (ProblemInstance.validateAssignament(CU, vCU) && CUs.add(CU)) {
+                    if (ProblemInstance.validateAssignament(CU, vCU) && tCUs.add(CU)) {
                         asignarRecursos(init, vCU, CU, k);
                         break;
                     }
@@ -130,7 +125,7 @@ public class GreedyFull implements Initialization<MatrixSolution> {
                     break;//pasar a la siguiente peticion
                 }
             }
-            CUs.clear();
+            tCUs.clear();
             if (!isValid) {//no se asignaron todas las CUs virtuales, liberar las asignadas..
                 liberarRecursos(request);
             } else {//se asignaron todas las CUs virtuales, asignar las DUs virtuales ..
@@ -140,14 +135,14 @@ public class GreedyFull implements Initialization<MatrixSolution> {
                     DUsComparator.setBase(vDU);
                     Collections.sort(DUsList, DUsComparator);
                     for (Node DU : DUsList) {
-                        if (!DUs.contains(DU)) {
+                        if (!tDUs.contains(DU)) {
                             for (int vcu : vDU.nears) {//por cada enlace del vDU
                                 splitIndx = instance.getMinSplitIndex(request.vLinks[vDU.nodePosition][vcu]);
                                 request.vLinks[vDU.nodePosition][vcu].indxPath = -1;
                                 if (splitIndx == -1) {
                                     break;
                                 }
-                                if (ProblemInstance.validateAssingament(vDU, DU) && instance.mPaths[DU.nodePosition][request.vNodes[vcu].indxNode] != null && !instance.mPaths[DU.nodePosition][request.vNodes[vcu].indxNode].isEmpty()) {
+                                if (ProblemInstance.validateAssignament(vDU, DU) && instance.mPaths[DU.nodePosition][request.vNodes[vcu].indxNode] != null && !instance.mPaths[DU.nodePosition][request.vNodes[vcu].indxNode].isEmpty()) {
                                     paths.addAll(instance.mPaths[DU.nodePosition][request.vNodes[vcu].indxNode]);
                                     Collections.sort(paths, pathsComparator);
                                     //validar la posible ruta y elegir el mejor split
@@ -184,7 +179,7 @@ public class GreedyFull implements Initialization<MatrixSolution> {
                         break;//pasar a la siguiente peticion
                     }
                 }
-                DUs.clear();
+                tDUs.clear();
                 if (init.accepted[k]) {//solucion atendida?
                     nAccepted++;
                 } else {//no fue atendida, liberar recursos..
@@ -213,7 +208,7 @@ public class GreedyFull implements Initialization<MatrixSolution> {
      * @param request
      * @param k
      */
-    private void liberarRecursos(MatrixSolution s, Request request, int k) {
+    private void liberarRecursos(T s, Request request, int k) {
         VirtualNode vCU;
         for (VirtualNode vDU : request.vDUs) {
             if (vDU.indxNode == -1) {
@@ -270,7 +265,7 @@ public class GreedyFull implements Initialization<MatrixSolution> {
      * @param physicalNode
      * @param k
      */
-    private void asignarRecursos(MatrixSolution s, VirtualNode virtualNode, Node physicalNode, int k) {
+    private void asignarRecursos(T s, VirtualNode virtualNode, Node physicalNode, int k) {
         virtualNode.indxNode = physicalNode.nodePosition;//asignacion de indice del nodo fisico
         physicalNode.usedPRC += virtualNode.prc;//aumento del ancho de banda usado
         if (physicalNode.usedPRC > physicalNode.prc) {
@@ -288,8 +283,8 @@ public class GreedyFull implements Initialization<MatrixSolution> {
      * @param splitIndx The split index.
      * @param pathSolution
      */
-    private void asignarRecursos(MatrixSolution s, VirtualNode vDU, Node DU, int k, int pathIndx, int splitIndx, PathSolution pathSolution) {
-        if (!DUs.contains(DU)) {
+    private void asignarRecursos(T s, VirtualNode vDU, Node DU, int k, int pathIndx, int splitIndx, PathSolution pathSolution) {
+        if (!tDUs.contains(DU)) {
             asignarRecursos(s, vDU, DU, k);
             DU.usedANT += vDU.ant;
             if (DU.usedANT > DU.ant) {
@@ -299,7 +294,7 @@ public class GreedyFull implements Initialization<MatrixSolution> {
             if (DU.usedPRB > DU.prb) {
                 DU.usedPRB = DU.prb;
             }
-            DUs.add(DU);
+            tDUs.add(DU);
         }
         s.data[k][vDU.indx + instance.pathPosition] = pathIndx;//asignacion de ruta
         s.data[k][vDU.indx + instance.splitPosition] = splitIndx;//asignacion de split
@@ -329,7 +324,7 @@ public class GreedyFull implements Initialization<MatrixSolution> {
         return splitIndx;
     }
 
-    private void random(MatrixSolution init, List<Request> requestsList, List<Flow> splits, List<Node> DUsList, List<Node> CUsList, List<Flow> functionalSplit) {
+    private void random(T init, List<Request> requestsList, List<Flow> splits, List<Node> DUsList, List<Node> CUsList, List<Flow> functionalSplit) {
         List<Request> requests = new ArrayList<>(requestsList);
         List<PathSolution> paths = new ArrayList<>();
         List<VirtualNode> vCUs = new ArrayList<>();
@@ -350,7 +345,7 @@ public class GreedyFull implements Initialization<MatrixSolution> {
                 vCU.indxNode = -1;
                 Collections.shuffle(CUsList, rand);
                 for (Node CU : CUsList) {
-                    if (ProblemInstance.validateAssignament(CU, vCU) && !CUs.add(CU)) {
+                    if (ProblemInstance.validateAssignament(CU, vCU) && !tCUs.add(CU)) {
                         asignarRecursos(init, vCU, CU, k);
                         break;
                     }
@@ -361,12 +356,12 @@ public class GreedyFull implements Initialization<MatrixSolution> {
                     init.data[k][vCU.indx] = vCU.indxNode;
                 }
             }
-            CUs.clear();
+            tCUs.clear();
             for (VirtualNode vDU : vDUs) {
                 vDU.indxNode = -1;
                 Collections.shuffle(DUsList, rand);
                 for (Node DU : DUsList) {
-                    if (!DUs.contains(DU) && ProblemInstance.validateAssingament(vDU, DU)) {
+                    if (!tDUs.contains(DU) && ProblemInstance.validateAssignament(vDU, DU)) {
                         for (int vcu : vDU.nears) {//por cada enlace del vDU
                             request.vLinks[vDU.nodePosition][vcu].indxPath = -1;
                             if (instance.mPaths[DU.nodePosition][request.vNodes[vcu].indxNode] != null && !instance.mPaths[DU.nodePosition][request.vNodes[vcu].indxNode].isEmpty()) {
@@ -403,7 +398,7 @@ public class GreedyFull implements Initialization<MatrixSolution> {
                     init.data[k][vDU.indx + instance.splitPosition] = splits.indexOf(functionalSplit.get(0));
                 }
             }
-            DUs.clear();
+            tDUs.clear();
             if (init.accepted[k]) {
                 nAccepted++;
             }
@@ -414,6 +409,11 @@ public class GreedyFull implements Initialization<MatrixSolution> {
         } else {
             instance.cleanResources();
         }
+    }
+
+    @Override
+    protected T initializeSolution(int n, int m) {
+        return (T) new MatrixSolution(n, m);
     }
 }
 

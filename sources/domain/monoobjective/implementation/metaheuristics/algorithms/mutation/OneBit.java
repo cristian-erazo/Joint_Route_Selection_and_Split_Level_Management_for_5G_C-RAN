@@ -1,5 +1,6 @@
 package domain.monoobjective.implementation.metaheuristics.algorithms.mutation;
 
+import domain.operators.Mutation;
 import domain.monoobjective.implementation.MatrixSolution;
 import domain.problem.ProblemInstance;
 import domain.problem.virtual.VirtualNode;

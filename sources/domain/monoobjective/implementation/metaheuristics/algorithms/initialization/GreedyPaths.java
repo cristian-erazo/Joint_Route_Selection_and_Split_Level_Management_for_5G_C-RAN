@@ -24,51 +24,42 @@ import java.util.TreeSet;
 /**
  *
  * @author cristian.erazo@cinvestav.mx
+ * @param <T>
  */
-public class GreedyPaths implements Initialization<MatrixSolution> {
+public class GreedyPaths<T extends MatrixSolution> extends InitializationApproach<T> {
 
     private Comparator<VirtualLink> virtualLinkComparator;
     private Comparator<PathSolution> pathsComparator;
     private Comparator<Request> requestComparator;
-    private final ProblemInstance instance;
     private List<PathSolution> paths;
-    private TreeSet<Node> tCUs;
-    private TreeSet<Node> tDUs;
-    private int popSize;
-    private Random rand;
 
     public GreedyPaths(ProblemInstance instance, int popSize, Random rand) {
+        super(rand, instance, popSize);
         this.virtualLinkComparator = new VirtualLinkComparator();
         this.requestComparator = new RequestComparator();
         this.pathsComparator = new PathComparator();
-        this.instance = instance;
-        this.popSize = popSize;
-        this.rand = rand;
         this.paths = new ArrayList<>();
     }
 
     @Override
-    public List<MatrixSolution> run() {
+    public List<T> run() {
         if (popSize > 0) {
             paths.clear();
             int n = instance.requests.length, m = instance.maxVirtualDUs * instance.step, j;
-            List<MatrixSolution> population = new ArrayList<>();
+            List<T> population = new ArrayList<>();
             tCUs = new TreeSet<>();
             tDUs = new TreeSet<>();
             List<Request> requestsList = Arrays.asList(instance.requests);
             List<Request> requests = new ArrayList<>(requestsList);
             paths.addAll(instance.mPaths[0][0]);
             for (int k = 0; k < popSize;) {
-                MatrixSolution init = new MatrixSolution(n, m);
+                T init = initializeSolution(n, m);
                 init.accepted = new boolean[n];
                 for (int i = 0; i < instance.requests.length; i++) {//para cada peticion, asignar el orden inicial y las posiciones de la matriz
                     j = 0;//cuenta las posiciones de la columna para asignarla al grafo
-                    for (VirtualNode vCU : instance.requests[i].vCUs) {//para cada nodo vCU, asignar la posicion a la que le corresponde en la matriz
-                        vCU.indx = j;//asignar la posicion de la columna al nodo vCU
-                        for (Integer vdu : vCU.nears) {//obtener los nodos DU a los que se conecta (cada CU se conecta por un enlace)
-                            instance.requests[i].vNodes[vdu].indx = j;//asignar posiciones relativas al nodo vCU
-                            j += instance.step;//la siguiente posicion dependera del tipo de representacion
-                        }
+                    for (VirtualNode vDU : instance.requests[i].vDUs) {//para cada nodo vDU, asignar la posicion a la que le corresponde en la matriz
+                        vDU.indx = j;//asignar la posicion de la columna al nodo vDU
+                        j += instance.step;//la siguiente posicion dependera del tipo de representacion
                     }
                     for (; j < init.getM(); j++) {
                         init.data[i][j] = -1;
@@ -81,9 +72,9 @@ public class GreedyPaths implements Initialization<MatrixSolution> {
                 } else {
                     random(init);
                 }
-                //if (!population.contains(init)) {
-                    population.add(init);
-                    k++;
+                //if (!population.contains(initializeSolution)) {
+                population.add(init);
+                k++;
                 //}
             }
             return population;
@@ -91,7 +82,7 @@ public class GreedyPaths implements Initialization<MatrixSolution> {
         return null;
     }
 
-    private void random(MatrixSolution init) {
+    private void random(T init) {
         int j;
         for (int i = 0; i < instance.requests.length; i++) {
             for (VirtualNode vDU : instance.requests[i].vDUs) {
@@ -148,7 +139,7 @@ public class GreedyPaths implements Initialization<MatrixSolution> {
                     } else if (vDU.indxNode != -1 && vDU.indxNode != DU.nodePosition) {
                         continue;
                     } else if (vDU.indxNode == -1) {
-                        if (!ProblemInstance.validateAssingament(vDU, DU)) {
+                        if (!ProblemInstance.validateAssignament(vDU, DU)) {
                             continue;
                         }
                     }
@@ -298,5 +289,10 @@ public class GreedyPaths implements Initialization<MatrixSolution> {
         vLink.indxPath = instance.mPaths[0][0].indexOf(pathSolution);
         data[vDU.indx + instance.pathPosition] = vLink.indxPath;
         data[vDU.indx + instance.splitPosition] = splitIndx;
+    }
+
+    @Override
+    protected T initializeSolution(int n, int m) {
+        return (T) new MatrixSolution(n, m);
     }
 }

@@ -1,6 +1,7 @@
 package domain.monoobjective.implementation.metaheuristics.algorithms.mutation;
 
 import domain.monoobjective.implementation.MatrixSolution;
+import domain.operators.Mutation;
 import domain.problem.ProblemInstance;
 import domain.problem.virtual.VirtualNode;
 import java.util.ArrayList;
@@ -10,12 +11,13 @@ import java.util.Random;
 /**
  *
  * @author cristian.erazo@cinvestav.mx
+ * @param <T>
  */
-public class MultiBit implements Mutation<MatrixSolution> {
+public class MultiBit<T extends MatrixSolution> implements Mutation<T> {
 
+    private T ind;
     private Random rand;
     private ProblemInstance p;
-    private MatrixSolution ind;
     private double probability;
     private List<Integer> indx;
 
@@ -28,7 +30,7 @@ public class MultiBit implements Mutation<MatrixSolution> {
     }
 
     @Override
-    public MatrixSolution run() {
+    public T run() {
         if (p != null && ind != null && p.min != null && p.max != null) {
             for (int i = 0; i < ind.getN(); i++) {
                 if (rand.nextDouble() < probability) {
@@ -75,7 +77,7 @@ public class MultiBit implements Mutation<MatrixSolution> {
     }
 
     @Override
-    public void setIndividual(MatrixSolution ind) {
+    public void setIndividual(T ind) {
         this.ind = ind;
     }
 

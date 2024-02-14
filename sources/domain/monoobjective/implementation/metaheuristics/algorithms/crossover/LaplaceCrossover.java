@@ -1,6 +1,7 @@
 package domain.monoobjective.implementation.metaheuristics.algorithms.crossover;
 
 import domain.monoobjective.implementation.MatrixSolution;
+import domain.operators.Crossover;
 import domain.problem.ProblemInstance;
 import domain.problem.virtual.VirtualNode;
 import java.util.ArrayList;
@@ -11,10 +12,11 @@ import java.util.Random;
 /**
  *
  * @author cristian.erazo@cinvestav.mx
+ * @param <T>
  */
-public class LaplaceCrossover implements Crossover<MatrixSolution> {
+public class LaplaceCrossover<T extends MatrixSolution> implements Crossover<T> {
 
-    private List<MatrixSolution> parents;
+    private List<T> parents;
     private ProblemInstance instance;
     private List<Integer> indx;
     private final double prob;
@@ -34,19 +36,19 @@ public class LaplaceCrossover implements Crossover<MatrixSolution> {
     }
 
     @Override
-    public List<MatrixSolution> run() {
-        if (nChilds > 0 && !parents.isEmpty() && parents != null && nChilds <= parents.size()) {
+    public List<T> run() {
+        if (nChilds > 0 && parents != null && !parents.isEmpty() && nChilds <= parents.size()) {
             int k = 0, n = parents.get(0).getN(), m = parents.get(0).getM(), res, i, j;
             double u, Betha;
-            List<MatrixSolution> childs = new ArrayList<>();
+            List<T> childs = new ArrayList<>();
             Collections.shuffle(parents, rand);
             while (childs.size() < nChilds) {
-                MatrixSolution p1 = parents.get(k);
+                T p1 = parents.get(k);
                 k = (k + 1) % parents.size();
-                MatrixSolution p2 = parents.get(k);
+                T p2 = parents.get(k);
                 k = (k + 1) % parents.size();
-                MatrixSolution c1 = p1.copy();
-                MatrixSolution c2 = p2.copy();
+                T c1 = (T) p1.copy();
+                T c2 = (T) p2.copy();
                 if (instance.isFullyRepresentated()) {
                     int defP1, defP2;
                     for (i = 0; i < n; i++) {
@@ -155,7 +157,7 @@ public class LaplaceCrossover implements Crossover<MatrixSolution> {
     }
 
     @Override
-    public void setParents(List<MatrixSolution> parents) {
+    public void setParents(List<T> parents) {
         if (!this.parents.isEmpty()) {
             this.parents.clear();
         }

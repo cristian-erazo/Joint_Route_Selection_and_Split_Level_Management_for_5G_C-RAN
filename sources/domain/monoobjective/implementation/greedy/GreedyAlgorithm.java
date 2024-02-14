@@ -5,7 +5,9 @@ import domain.monoobjective.MonoObjectiveAlgorithm;
 import domain.monoobjective.implementation.MatrixSolution;
 import domain.problem.ProblemInstance;
 import domain.problem.graph.Link;
+import domain.problem.graph.Node;
 import domain.problem.virtual.VirtualNode;
+import java.util.TreeSet;
 
 /**
  *
@@ -25,10 +27,20 @@ public abstract class GreedyAlgorithm implements MonoObjectiveAlgorithm<Integer[
      * The best solution found.
      */
     protected MatrixSolution best;
+    /**
+     *
+     */
+    protected TreeSet<Node> tCUs;
+    /**
+     *
+     */
+    protected TreeSet<Node> tDUs;
 
     public GreedyAlgorithm(ProblemInstance instance, EvaluationFunction<Double, MatrixSolution> fx) {
         this.instance = instance;
         this.fx = fx;
+        tCUs = new TreeSet<>();
+        tDUs = new TreeSet<>();
     }
 
     @Override
@@ -36,6 +48,8 @@ public abstract class GreedyAlgorithm implements MonoObjectiveAlgorithm<Integer[
 
     protected void initialize() {
         int pos;
+        tCUs.clear();
+        tDUs.clear();
         if (instance.isFullyRepresentated()) {
             best = new MatrixSolution(instance.requests.length, instance.step * instance.maxVirtualDUs + instance.maxVirtualCUs);
             best.accepted = new boolean[instance.requests.length];
@@ -60,7 +74,9 @@ public abstract class GreedyAlgorithm implements MonoObjectiveAlgorithm<Integer[
                 pos = 0;//cuenta las posiciones de la columna para asignarla al grafo
                 for (VirtualNode vDU : instance.requests[k].vDUs) {//obtener los nodos DU a los que se conecta (cada CU se conecta por un enlace)
                     for (Integer vcu : vDU.nears) {
-                        instance.requests[k].vNodes[vcu].indx = pos;
+                        if (instance.requests[k].vNodes[vcu].indx == -1) {
+                            instance.requests[k].vNodes[vcu].indx = pos;
+                        }
                     }
                     vDU.indx = pos;//asignar posiciones relativas al nodo vCU
                     pos += instance.step;//la siguiente posicion dependera del tipo de representacion

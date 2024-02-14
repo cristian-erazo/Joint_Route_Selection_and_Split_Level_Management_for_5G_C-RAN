@@ -67,4 +67,14 @@ public class Link implements Serializable {
     public String toString() {
         return String.format("(%.2f|%.2f)", bw, usedBw);
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        Link o = (Link) obj;
+        return source == o.source && destination == o.destination;
+    }
+
+    public Link copySubInstance() {
+        return new Link(bw - usedBw, processingTime, linkLength, linkCost, linkType, source, destination);
+    }
 }

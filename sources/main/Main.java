@@ -2,6 +2,7 @@ package main;
 
 import domain.util.Runner;
 import domain.util.Tools;
+import java.io.IOException;
 
 /**
  *
@@ -11,8 +12,9 @@ public class Main {
 
     /**
      * @param args the command line arguments
+     * @throws java.io.IOException
      */
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         int av = args.length;
         boolean version = false, help = false;
         Runner runner = Runner.getInstance();
@@ -34,17 +36,23 @@ public class Main {
                         displayInfo();
                     }
                     av--;
+                } else if ("-online".compareToIgnoreCase(arg) == 0) {
+                    Tools.runOnlineVersion = true;
                 }
             }
             if (!(help || version)) {
-                if (av == 2) {
-                    runner.runConfigFile(args[0], args[1]);
-                } else if (av == 3) {
-                    runner.runGurobi(args);
-                } else if (av > 4) {
-                    runner.runCommandLine(args);
+                if (Tools.runOnlineVersion) {
+                    runner.runOnlineVersion(args[0], args[1], args[2]);
                 } else {
-                    System.out.println("Wrong parameters. For help, input the option -h or -help.");
+                    if (av == 2) {
+                        runner.runConfigFile(args[0], args[1]);
+                    } else if (av == 3) {
+                        runner.runGurobi(args);
+                    } else if (av > 4) {
+                        runner.runCommandLine(args);
+                    } else {
+                        System.out.println("Wrong parameters. For help, input the option -h or -help.");
+                    }
                 }
             }
         } else {

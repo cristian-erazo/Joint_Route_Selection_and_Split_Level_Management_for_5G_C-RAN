@@ -12,7 +12,7 @@ public class NodeDistanceComparator extends NodeComparator {
     @Override
     public int compare(Node x, Node y) {
         if ((x.nodeType == 1 || x.nodeType == 4) && (y.nodeType == 1 || y.nodeType == 4)) {//compare DU
-            return Double.compare(dist(x.location), dist(y.location));
+            return Double.compare(dist(x.location), dist(y.location));//compare by distance
         }//compare other nodes by CompareTo
         return x.compareTo(y);
     }

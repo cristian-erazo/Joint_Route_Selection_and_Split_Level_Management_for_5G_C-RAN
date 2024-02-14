@@ -1,6 +1,7 @@
 package domain.monoobjective.implementation.metaheuristics.algorithms.selection;
 
 import domain.monoobjective.implementation.MatrixSolution;
+import domain.operators.Selection;
 import java.util.List;
 import java.util.Random;
 
@@ -10,11 +11,11 @@ import java.util.Random;
  */
 public class StochasticRanking implements Selection<MatrixSolution> {
 
-    private final boolean isMaximization;
-    private List<MatrixSolution> list;
-    private final double prob;
-    private Random rand;
-    private int size;
+    protected final boolean isMaximization;
+    protected List<MatrixSolution> list;
+    protected final double prob;
+    protected Random rand;
+    protected int size;
 
     public StochasticRanking(boolean isMaximization, Random rand, double prob) {
         size = 0;

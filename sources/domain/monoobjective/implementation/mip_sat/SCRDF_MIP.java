@@ -6,7 +6,7 @@ import domain.monoobjective.implementation.greedy.GreedyAlgorithm;
 import domain.monoobjective.implementation.greedy.algorithms.MultiChoicesGreedyAlgorithm;
 import domain.monoobjective.implementation.greedy.algorithms.PathChoicesGreedyAlgorithm;
 import domain.monoobjective.implementation.greedy.comparators.NodeDistanceComparator;
-import domain.monoobjective.implementation.greedy.comparators.NodeResourcesComparator;
+import domain.monoobjective.implementation.greedy.comparators.NodeFittestResourcesComparator;
 import domain.monoobjective.implementation.greedy.comparators.PathComparator;
 import domain.monoobjective.implementation.greedy.comparators.RequestComparator;
 import domain.monoobjective.implementation.greedy.comparators.VirtualLinkComparator;
@@ -15,11 +15,11 @@ import domain.monoobjective.implementation.metaheuristics.algorithms.GeneticAlgo
 import domain.monoobjective.implementation.metaheuristics.algorithms.crossover.Uniform;
 import domain.monoobjective.implementation.metaheuristics.algorithms.initialization.GreedyFull;
 import domain.monoobjective.implementation.metaheuristics.algorithms.initialization.GreedyPaths;
-import domain.monoobjective.implementation.metaheuristics.algorithms.initialization.Initialization;
 import domain.monoobjective.implementation.metaheuristics.algorithms.mutation.MultiBit;
-import domain.monoobjective.implementation.metaheuristics.algorithms.mutation.Mutation;
-import domain.monoobjective.implementation.metaheuristics.algorithms.selection.Selection;
 import domain.monoobjective.implementation.metaheuristics.algorithms.selection.StochasticRanking;
+import domain.operators.Initialization;
+import domain.operators.Mutation;
+import domain.operators.Selection;
 import domain.paths.PathSolution;
 import domain.problem.ProblemInstance;
 import domain.problem.graph.*;
@@ -88,7 +88,7 @@ public class SCRDF_MIP {
             model.set(GRB.IntParam.OutputFlag, 0);
         }
         model.set(GRB.DoubleParam.TimeLimit, 3 * 60 * 60);//tiempo máximo de 3 horas
-        model.set(GRB.IntParam.Threads, 1);
+//        model.set(GRB.IntParam.Threads, 4);
         runner = Runner.getInstance();
     }
 
@@ -945,7 +945,7 @@ public class SCRDF_MIP {
         GreedyAlgorithm alg;
         if (instance.isFullyRepresentated()) {
             VirtualNodeComparator virtualNodeComparator = new VirtualNodeComparator();
-            NodeResourcesComparator nodeComparator = new NodeResourcesComparator();
+            NodeFittestResourcesComparator nodeComparator = new NodeFittestResourcesComparator();
             alg = new MultiChoicesGreedyAlgorithm(new RequestComparator(), virtualNodeComparator, virtualNodeComparator, nodeComparator, new NodeDistanceComparator(), new PathComparator(), instance, Fx);
         } else {
             alg = new PathChoicesGreedyAlgorithm(new PathComparator(), new VirtualLinkComparator(), new RequestComparator(), instance, Fx);
@@ -1123,14 +1123,14 @@ public class SCRDF_MIP {
         for (int j = 0; j < nCUs; j++) {
             BBUs.addTerm(-1., b_CUs[j]);
         }
-        GRBLinExpr numAcc = new GRBLinExpr();
-        for (int r = 0; r < nRequests; r++) {
-            numAcc.addTerm(1., b_req[r]);
-        }
+//        GRBLinExpr numAcc = new GRBLinExpr();
+//        for (int r = 0; r < nRequests; r++) {
+//            numAcc.addTerm(1., b_req[r]);
+//        }
         //agregar terminos de la funcion objetivo
         objectiveFunction.add(LoC);
         objectiveFunction.add(UoL);
-        //Fx.add(numAcc);
+        //objectiveFunction.add(numAcc);
         //objectiveFunction.add(BBUs);
         model.setObjective(objectiveFunction, GRB.MAXIMIZE);
     }

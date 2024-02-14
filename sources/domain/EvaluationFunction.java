@@ -52,7 +52,19 @@ public interface EvaluationFunction<E, Solution> extends Serializable {
      * function.
      *
      * @return Number of times the
-     * {@link EvaluationFunction#evaluate(java.lang.Object) evaluate(s)} method was called.
+     * {@link EvaluationFunction#evaluate(java.lang.Object) evaluate(s)} method
+     * was called.
      */
     public long EFO();
+
+    /**
+     * This function determines if solution a is better than solution b
+     * according to some criteria defined by the evaluation function.
+     *
+     * @param a Solution to be compared
+     * @param b Solution to be compared
+     * @return <i>true</i> iff solution <i>a</i> is better than solution
+     * <i>b</i>. <i>false</i> otherwise.
+     */
+    public boolean isBetter(Solution a, Solution b);
 }

@@ -27,8 +27,6 @@ public class PathChoicesGreedyAlgorithm extends GreedyAlgorithm {
     private final Comparator<PathSolution> pathComparator;
     private final Comparator<VirtualLink> virtualLinkComparator;
     private final Comparator<Request> requestComparator;
-    private TreeSet<Node> tCUs;
-    private TreeSet<Node> tDUs;
 
     public PathChoicesGreedyAlgorithm(Comparator<PathSolution> pathComparator, Comparator<VirtualLink> virtualLinkComparator, Comparator<Request> requestComparator, ProblemInstance instance, EvaluationFunction<Double, MatrixSolution> fx) {
         super(instance, fx);
@@ -44,8 +42,6 @@ public class PathChoicesGreedyAlgorithm extends GreedyAlgorithm {
         boolean isValid;
         VirtualNode vDU, vCU;
         int k, nAccepted = 0, splitIndx;
-        tCUs = new TreeSet<>();
-        tDUs = new TreeSet<>();
         TreeSet<PathSolution> selected = new TreeSet<>();
         initialize();
         List<PathSolution> paths = new ArrayList<>(instance.mPaths[0][0]);
@@ -69,7 +65,7 @@ public class PathChoicesGreedyAlgorithm extends GreedyAlgorithm {
                 }
                 Collections.sort(paths, pathComparator);
                 for (PathSolution path : paths) {
-                    if(!selected.contains(path)) {
+                    if (!selected.contains(path)) {
                         CU = path.getNodesOfPath().get(0);
                         DU = path.getNodesOfPath().get(path.getNodesOfPath().size() - 1);
                         if (DU.nodeType == 2 || CU.nodeType == 1) {
@@ -92,7 +88,7 @@ public class PathChoicesGreedyAlgorithm extends GreedyAlgorithm {
                         } else if (vDU.indxNode != -1 && vDU.indxNode != DU.nodePosition) {
                             continue;
                         } else if (vDU.indxNode == -1) {
-                            if (!ProblemInstance.validateAssingament(vDU, DU)) {
+                            if (!ProblemInstance.validateAssignament(vDU, DU)) {
                                 continue;
                             }
                         }

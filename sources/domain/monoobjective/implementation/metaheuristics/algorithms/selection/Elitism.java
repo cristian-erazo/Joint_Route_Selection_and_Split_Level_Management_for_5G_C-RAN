@@ -1,5 +1,6 @@
 package domain.monoobjective.implementation.metaheuristics.algorithms.selection;
 
+import domain.operators.Selection;
 import domain.monoobjective.implementation.MatrixSolution;
 import domain.util.Tools;
 import java.util.ArrayList;
@@ -10,19 +11,17 @@ import java.util.List;
 public class Elitism implements Selection<MatrixSolution> {
 
     private List<MatrixSolution> list;
-    private final boolean isMaximization;
     private int size;
 
-    public Elitism(boolean isMaximization) {
+    public Elitism() {
         size = 0;
         this.list = new ArrayList<>();
-        this.isMaximization = isMaximization;
     }
 
     @Override
     public List<MatrixSolution> run() {
         if (size > 0 && !list.isEmpty() && size <= list.size()) {
-            if (isMaximization) {
+            if (Tools.isMaximization) {
                 Collections.sort(list, new Comparator<MatrixSolution>() {
                     @Override
                     public int compare(MatrixSolution o1, MatrixSolution o2) {

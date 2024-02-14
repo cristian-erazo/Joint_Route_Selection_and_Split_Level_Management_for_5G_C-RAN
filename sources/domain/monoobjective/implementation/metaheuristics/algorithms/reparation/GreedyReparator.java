@@ -3,8 +3,9 @@ package domain.monoobjective.implementation.metaheuristics.algorithms.reparation
 import domain.monoobjective.implementation.MatrixSolution;
 import domain.monoobjective.implementation.greedy.comparators.NodeComparator;
 import domain.monoobjective.implementation.greedy.comparators.NodeDistanceComparator;
-import domain.monoobjective.implementation.greedy.comparators.NodeResourcesComparator;
+import domain.monoobjective.implementation.greedy.comparators.NodeFittestResourcesComparator;
 import domain.monoobjective.implementation.greedy.comparators.PathComparator;
+import domain.operators.Reparator;
 import domain.paths.PathSolution;
 import domain.problem.ProblemInstance;
 import domain.problem.graph.Node;
@@ -20,14 +21,15 @@ import java.util.TreeSet;
 /**
  *
  * @author cristian.erazo@cinvestav.mx
+ * @param <T>
  */
-public class GreedyReparator implements Reparator<MatrixSolution> {
+public class GreedyReparator<T extends MatrixSolution> implements Reparator<T> {
 
-    private Random r;
-    private MatrixSolution s;
-    private ProblemInstance instance;
-    private final int[] idx;
-    private final boolean[] True;
+    protected T s;
+    protected Random r;
+    protected final int[] idx;
+    protected final boolean[] True;
+    protected ProblemInstance instance;
 
     public GreedyReparator(Random r, ProblemInstance instance) {
         this.r = r;
@@ -41,10 +43,10 @@ public class GreedyReparator implements Reparator<MatrixSolution> {
     }
 
     @Override
-    public MatrixSolution run() {
+    public T run() {
         if (s != null) {
             List<PathSolution> paths = (instance.isFullyRepresentated() ? null : new ArrayList<>(instance.mPaths[0][0]));
-            NodeComparator distCmp = new NodeDistanceComparator(), resCmp = new NodeResourcesComparator();
+            NodeComparator distCmp = new NodeDistanceComparator(), resCmp = new NodeFittestResourcesComparator();
             List<Node> CUs = new ArrayList<>(instance.CUs), DUs = new ArrayList<>(instance.DUs);
             PathComparator pthCmp = new PathComparator();
             TreeSet<Node> visitedCUs = new TreeSet<>();
@@ -57,10 +59,6 @@ public class GreedyReparator implements Reparator<MatrixSolution> {
             s.isValid = true;
             for (x = 0; x < idx.length; x++) {
                 q = idx[x];
-                /*shuffle(jdx);
-                for (int j = 0; j < jdx.length; j++) {
-                    System.err.print(getType(idx[i], jdx[j]) + instance.isValid[idx[i]][jdx[j]]);
-                }*/
                 vCU = vDU = null;
                 if (s.accepted[q]) {
                     if (!Arrays.equals(instance.isValid[q], True)) {
@@ -78,6 +76,7 @@ public class GreedyReparator implements Reparator<MatrixSolution> {
                                 switch (instance.types[q][j]) {
                                     case 1://cu
                                         vCU = getVirtualCU(q, j);
+                                        resCmp.setBase(vCU);
                                         Collections.sort(CUs, resCmp);
                                         assigned = false;
                                         for (Node CU : CUs) {
@@ -100,7 +99,7 @@ public class GreedyReparator implements Reparator<MatrixSolution> {
                                         Collections.sort(DUs, distCmp);
                                         assigned = false;
                                         for (Node DU : DUs) {
-                                            if (!instance.tDUs.contains(DU) && ProblemInstance.validateAssingament(vDU, DU)) {
+                                            if (!instance.tDUs.contains(DU) && ProblemInstance.validateAssignament(vDU, DU)) {
                                                 vDU.indxNode = DU.nodePosition;
                                                 if (instance.mPaths[s.data[q][vCU.indx]][vDU.indxNode] != null) {
                                                     s.data[q][j] = vDU.indxNode;
@@ -122,25 +121,26 @@ public class GreedyReparator implements Reparator<MatrixSolution> {
                                                 vLink = instance.requests[q].vLinks[vCU.nodePosition][vDU.nodePosition];
                                                 paths = new ArrayList<>(t);
                                                 Collections.sort(paths, pthCmp);
+                                                s.data[q][j] = -1;
                                                 for (PathSolution path : paths) {
                                                     if (ProblemInstance.validateAssignament(path, instance.splits[s.data[q][j + 1]], vLink)) {
                                                         s.data[q][j] = t.indexOf(path);
                                                         break;
                                                     }
                                                 }
+                                                if (s.data[q][j] == -1) {
+                                                    s.data[q][j] = 0;
+                                                }
                                             } else {
                                                 instance.isValid[q][j - 1] = false;
                                                 j = j - 2;
                                             }
                                         } else {
-                                            vLink = instance.requests[q].virtualLinks.get(j / instance.step);
-                                            vCU = instance.requests[q].vNodes[vLink.source];
-                                            vDU = instance.requests[q].vNodes[vLink.destination];
-                                            if (vCU.nodeType == 1) {
-                                                vDU = vCU;
-                                                vCU = instance.requests[q].vNodes[vLink.destination];
-                                            }
+                                            vDU = instance.requests[q].vDUs.get(j / instance.step);
+                                            vCU = instance.requests[q].vNodes[vDU.nears.get(0)];
+                                            vLink = instance.requests[q].vLinks[vDU.nodePosition][vCU.nodePosition];
                                             Collections.sort(paths, pthCmp);
+                                            assigned = false;
                                             for (PathSolution path : paths) {
                                                 Node CU = path.getNodesOfPath().get(0);
                                                 Node DU = path.getNodesOfPath().get(path.getNodesOfPath().size() - 1);
@@ -164,14 +164,20 @@ public class GreedyReparator implements Reparator<MatrixSolution> {
                                                 } else if (vDU.indxNode != -1 && vDU.indxNode != DU.nodePosition) {
                                                     continue;
                                                 } else if (vDU.indxNode == -1) {
-                                                    if (!ProblemInstance.validateAssingament(vDU, DU)) {
+                                                    if (!ProblemInstance.validateAssignament(vDU, DU)) {
                                                         continue;
                                                     }
                                                 }
-                                                if (ProblemInstance.validateAssignament(path, instance.splits[s.data[q][j + 1]], vLink)) {
+                                                if (ProblemInstance.validateAssignament(path, instance.splits[s.data[q][j + instance.splitPosition]], vLink)) {
                                                     s.data[q][j] = instance.mPaths[0][0].indexOf(path);
+                                                    assigned = true;
                                                     break;
                                                 }
+                                            }
+                                            if (!assigned) {
+                                                s.accepted[q] = false;
+                                                Arrays.fill(instance.isValid[q], false);
+                                                j = s.getM();
                                             }
                                         }
                                         break;
@@ -190,7 +196,7 @@ public class GreedyReparator implements Reparator<MatrixSolution> {
                         }
                         visitedCUs.clear();
                     }
-                    consumeResources(instance, s, q);
+                    ProblemInstance.consumeResources(instance, s, q);
                 }
             }
             s.gn = instance.validate(s);
@@ -199,8 +205,8 @@ public class GreedyReparator implements Reparator<MatrixSolution> {
     }
 
     @Override
-    public void setIndividual(MatrixSolution ind) {
-        this.s = ind;
+    public void setIndividual(T ind) {
+        s = ind;
     }
 
     private void shuffle(int[] arr) {
@@ -239,49 +245,5 @@ public class GreedyReparator implements Reparator<MatrixSolution> {
             }
         }
         return null;
-    }
-
-    private void consumeResources(ProblemInstance instance, MatrixSolution s, int i) {
-        VirtualNode vDU, vCU;
-        PathSolution path;
-        Node CU, DU;
-        for (VirtualLink vLink : instance.requests[i].virtualLinks) {
-            vDU = instance.requests[i].vNodes[vLink.source];
-            vCU = instance.requests[i].vNodes[vLink.destination];
-            if (vDU.nodeType == 2) {
-                vDU = vCU;
-                vCU = instance.requests[i].vNodes[vLink.source];
-            }
-            if (instance.isFullyRepresentated()) {//El indice corresponde a las rutas relativas
-                //[CU|DU|Fx|P|DU|Fx|P|CU|DU|Fx|P]
-                instance.updateCU(i, instance.nodes[s.data[i][vCU.indx]], vCU, s);
-                instance.updateDU(i, instance.nodes[s.data[i][vDU.indx]], vDU, s);
-                if (instance.mPaths[vDU.indxNode][vCU.indxNode] != null) {
-                    if (s.data[i][vDU.indx + instance.pathPosition] < instance.mPaths[vDU.indxNode][vCU.indxNode].size()) {
-                        instance.updatePath(i, vDU, vLink, instance.splits[s.data[i][vDU.indx + instance.splitPosition]], s, instance.mPaths[vDU.indxNode][vCU.indxNode].get(s.data[i][vDU.indx + instance.pathPosition]));
-                    } else {
-                        s.isValid = false;
-                    }
-                } else {
-                    s.isValid = false;
-                }
-            } else {//El indice corresponde al identificador de ruta (tanto las DUs como las CUs apuntan a la posicion de la ruta en la representacion)
-                //[P|Fx|P|Fx|P|Fx]
-                if (s.data[i][vDU.indx] < instance.mPaths[0][0].size()) {
-                    path = instance.mPaths[0][0].get(s.data[i][vDU.indx]);
-                    DU = path.getNodesOfPath().get(0);
-                    CU = path.getNodesOfPath().get(path.getLength() - 1);
-                    if (CU.nodeType == 1 || DU.nodeType == 2) {//si el nodo CU de la lista es un DU, intercambiar
-                        DU = CU;
-                        CU = path.getNodesOfPath().get(0);
-                    }
-                    instance.updateDU(i, DU, vDU, s);
-                    instance.updateCU(i, CU, vCU, s);
-                    instance.updatePath(i, vDU, vLink, instance.splits[s.data[i][vDU.indx + instance.splitPosition]], s, path);
-                } else {
-                    s.isValid = false;
-                }
-            }
-        }
     }
 }

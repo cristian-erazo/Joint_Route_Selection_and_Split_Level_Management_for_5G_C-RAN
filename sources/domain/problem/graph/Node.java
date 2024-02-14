@@ -73,9 +73,8 @@ public class Node implements Comparable<Node>, Serializable {
      * @param pos Index of the position of the node.
      * @param location The position of this node.
      * @param nears List of neighbours.
-     * @param links List of links from fronthaul until destination.
      */
-    public Node(int type, int pos, Location location, List<Integer> nears, List<Link> links) {
+    public Node(int type, int pos, Location location, List<Integer> nears) {
         this.nodeType = type;
         this.nodePosition = pos;
         this.location = location;
@@ -93,9 +92,18 @@ public class Node implements Comparable<Node>, Serializable {
     @Override
     public String toString() {
         if (nodeType == 1) {
-            return String.format("(%d,%d,%d|%d,%d,%d)", prc, ant, prb, usedPRC, usedANT, usedPRB);
+            return String.format("(%d|%d-%d,%d-%d)", nodePosition, prc, usedPRC, prb, usedPRB);
         } else {
-            return String.format("(%d|%d)", prc, usedPRC);
+            return String.format("(%d|%d-%d)", nodePosition, prc, usedPRC);
         }
+    }
+
+    public Node copySubInstance() {
+        Node copy = new Node(nodeType, nodePosition, location, nears);
+        copy.ant = ant - usedANT;
+        copy.prb = prb - usedPRB;
+        copy.prc = prc - usedPRC;
+        copy.theta = theta;
+        return copy;
     }
 }

@@ -1,6 +1,7 @@
 package domain.multiobjective;
 
 import domain.Algorithm;
+import java.util.List;
 
 /**
  *
@@ -11,5 +12,5 @@ import domain.Algorithm;
 public interface MultiObjectiveAlgorithm<E, T extends Comparable<T>> extends Algorithm {
 
     @Override
-    public MultiObjectiveSolution<E, T> run();
+    public List<MultiObjectiveSolution> run();
 }

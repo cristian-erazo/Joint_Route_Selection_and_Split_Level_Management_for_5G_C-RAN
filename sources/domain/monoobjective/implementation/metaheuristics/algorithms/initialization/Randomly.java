@@ -11,30 +11,26 @@ import java.util.Random;
 /**
  *
  * @author cristian.erazo@cinvestav.mx
+ * @param <T>
  */
-public class Randomly implements Initialization<MatrixSolution> {
-
-    private final ProblemInstance instance;
-    private int popSize;
-    private Random rand;
+public class Randomly<T extends MatrixSolution> extends InitializationApproach<T> {
 
     public Randomly(ProblemInstance instance, int popSize, Random rand) {
-        this.instance = instance;
-        this.popSize = popSize;
-        this.rand = rand;
+        super(rand, instance, popSize);
     }
 
     @Override
-    public List<MatrixSolution> run() {
+    public List<T> run() {
+        int j;
         if (popSize > 0) {
-            int n = instance.requests.length, m = instance.maxVirtualDUs * instance.step, j;
+            int n = instance.requests.length, m = instance.maxVirtualDUs * instance.step;
             if (instance.isFullyRepresentated()) {
                 m += instance.maxVirtualCUs;
             }
-            List<MatrixSolution> population = new ArrayList<>();
+            List<T> population = new ArrayList<>();
             if (instance.isFullyRepresentated()) {
                 for (int k = 0; k < popSize; k++) {
-                    MatrixSolution init = new MatrixSolution(n, m);
+                    T init = initializeSolution(n, m);
                     init.accepted = new boolean[n];
                     for (int i = 0; i < n; i++) {//para cada peticion, asignar el orden inicial y las posiciones de la matriz
                         j = 0;//cuenta las posiciones de la columna para asignarla al grafo
@@ -59,18 +55,16 @@ public class Randomly implements Initialization<MatrixSolution> {
                 }
             } else {
                 for (int k = 0; k < popSize; k++) {
-                    MatrixSolution init = new MatrixSolution(n, m);
+                    T init = initializeSolution(n, m);
                     init.accepted = new boolean[n];
                     for (int i = 0; i < n; i++) {//para cada peticion, asignar el orden inicial y las posiciones de la matriz
                         j = 0;//cuenta las posiciones de la columna para asignarla al grafo
-                        for (VirtualNode vCU : instance.requests[i].vCUs) {//para cada nodo vCU, asignar la posicion a la que le corresponde en la matriz
-                            vCU.indx = j;//asignar la posicion de la columna al nodo vCU
-                            for (Integer vdu : vCU.nears) {//obtener los nodos DU a los que se conecta (cada CU se conecta por un enlace)
-                                instance.requests[i].vNodes[vdu].indx = j;//asignar posiciones relativas al nodo vCU
-                                init.data[i][j] = instance.min.data[i][j] + (Objects.equals(instance.max.data[i][j], instance.min.data[i][j]) ? 0 : rand.nextInt(instance.max.data[i][j] - instance.min.data[i][j]));
-                                init.data[i][j + instance.splitPosition] = instance.min.data[i][j + instance.splitPosition] + rand.nextInt(instance.max.data[i][j + instance.splitPosition] - instance.min.data[i][j + instance.splitPosition]);
-                                j += instance.step;//la siguiente posicion dependera del tipo de representacion
-                            }
+                        init.accepted[i] = rand.nextBoolean();
+                        for (VirtualNode vDU : instance.requests[i].vDUs) {//para cada nodo vDU, asignar la posicion a la que le corresponde en la matriz
+                            vDU.indx = j;//asignar la posicion de la columna al nodo vDU
+                            init.data[i][j] = instance.min.data[i][j] + (Objects.equals(instance.max.data[i][j], instance.min.data[i][j]) ? 0 : rand.nextInt(instance.max.data[i][j] - instance.min.data[i][j]));
+                            init.data[i][j + instance.splitPosition] = instance.min.data[i][j + instance.splitPosition] + rand.nextInt(instance.max.data[i][j + instance.splitPosition] - instance.min.data[i][j + instance.splitPosition]);
+                            j += instance.step;//la siguiente posicion dependera del tipo de representacion
                         }
                         for (; j < init.getM(); j++) {
                             init.data[i][j] = -1;
@@ -82,5 +76,10 @@ public class Randomly implements Initialization<MatrixSolution> {
             return population;
         }
         return null;
+    }
+
+    @Override
+    protected T initializeSolution(int n, int m) {
+        return (T) new MatrixSolution(n, m);
     }
 }

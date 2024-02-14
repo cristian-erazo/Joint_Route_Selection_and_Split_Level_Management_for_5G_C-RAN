@@ -31,7 +31,7 @@ public class VirtualNode extends Node {
      * @param nears List of virtual node neighbours.
      */
     public VirtualNode(int indxNode, int indx, int type, int pos, Location location, List<Integer> nears) {
-        super(type, pos, location, nears, null);
+        super(type, pos, location, nears);
         this.indxNode = indxNode;
         this.indx = indx;
     }
@@ -39,9 +39,17 @@ public class VirtualNode extends Node {
     @Override
     public String toString() {
         if (nodeType == 1) {
-            return String.format("(%d,%d,%d)", prc, ant, prb);
+            return String.format("(%d|%d,%d)", nodePosition, prc, prb);
         } else {
-            return String.format("(%d)", prc);
+            return String.format("(%d|%d)", nodePosition, prc);
         }
+    }
+
+    public VirtualNode copy() {
+        VirtualNode copy = new VirtualNode(indxNode, indx, nodeType, prc, location, nears);
+        copy.ant = ant;
+        copy.prb = prb;
+        copy.prc = prc;
+        return copy;
     }
 }

@@ -20,5 +20,5 @@ public abstract class NodeComparator implements Comparator<Node> {
     }
 
     @Override
-    public abstract int compare(Node o1, Node o2);
+    public abstract int compare(Node x, Node y);
 }

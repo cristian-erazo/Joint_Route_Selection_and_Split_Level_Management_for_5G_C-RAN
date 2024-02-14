@@ -33,13 +33,17 @@ public class DijkstraKPaths extends SearchPath {
         this.CUs = new ArrayList<>();
         this.DUs = new ArrayList<>();
         for (Node nodo : nodes) {
-            if (nodo.nodeType == 1) {
-                DUs.add(nodo);
-            } else if (nodo.nodeType == 2) {
-                CUs.add(nodo);
-            } else if (nodo.nodeType == 4) {
-                DUs.add(nodo);
-                CUs.add(nodo);
+            switch (nodo.nodeType) {
+                case 4:
+                    CUs.add(nodo);
+                case 1:
+                    DUs.add(nodo);
+                    break;
+                case 2:
+                    CUs.add(nodo);
+                    break;
+                default:
+                    break;
             }
         }
         this.path = new ArrayList<>(nodes.length);

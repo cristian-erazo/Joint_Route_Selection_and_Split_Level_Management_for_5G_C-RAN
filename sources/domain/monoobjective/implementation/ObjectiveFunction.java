@@ -18,15 +18,15 @@ import java.util.List;
  */
 public class ObjectiveFunction implements EvaluationFunction<Double, MatrixSolution> {
 
-    private final ProblemInstance instance;
-    private boolean isMaximization;
+    protected final ProblemInstance instance;
+    protected boolean isMaximization;
     private final double w1;
     private final double w2;
     private final double w3;
     private List<List<Node>> pools;
     private List<Link> usedLinks;
     private FitnessComparator fc;
-    private long EFO;
+    protected long EFO;
 
     public ObjectiveFunction(ProblemInstance instance, double w1, double w2, double w3, boolean isMaximization) {
         this.instance = instance;
@@ -77,7 +77,7 @@ public class ObjectiveFunction implements EvaluationFunction<Double, MatrixSolut
             if (s.accepted[i]) {//si la peticion ha sido aceptada ...
                 // evaluate BBUpools & splits functions
                 for (VirtualNode vCU : instance.requests[i].vCUs) {
-                    if (!wasVisited(pools, instance.nodes[vCU.indxNode]) && !hasGroup(pools, vCU)) {
+                    if (vCU.indxNode != -1 && !wasVisited(pools, instance.nodes[vCU.indxNode]) && !hasGroup(pools, vCU)) {
                         BBUs++;
                     }
                 }
@@ -126,7 +126,8 @@ public class ObjectiveFunction implements EvaluationFunction<Double, MatrixSolut
         if (BBUs == 0) {
             BBUs = 1;
         }
-        return ((w1 * nvPHY + w2 * nvMAC + w3 * nvNW) / (mPrima * BBUs)) * (1.0 - (normUsedBw / (double) instance.nLinks));
+        s.quality = ((w1 * nvPHY + w2 * nvMAC + w3 * nvNW) / (mPrima * BBUs)) * (1.0 - (normUsedBw / (double) instance.nLinks));
+        return s.quality;
     }
 
     /**
@@ -258,6 +259,24 @@ public class ObjectiveFunction implements EvaluationFunction<Double, MatrixSolut
     @Override
     public long EFO() {
         return EFO;
+    }
+
+    @Override
+    public boolean isBetter(MatrixSolution a, MatrixSolution b) {
+        double va, vb, aa = a.getGn(), bb = b.getGn();
+        va = evaluate(a) + (aa * aa * 100);
+        vb = evaluate(b) + (bb * bb * 100);
+        if (isMaximization()) {
+            if (aa > 0) {
+                va *= -1.;
+            }
+            if (bb > 0) {
+                vb *= -1.;
+            }
+            return va > vb;
+        } else {
+            return va < vb;
+        }
     }
 }
 

@@ -8,7 +8,7 @@ import domain.Solution;
  * @param <E> Data type.
  * @param <T> Objective type.
  */
-public interface MonoObjectiveSolution<E, T extends Comparable<T>> extends Solution<E>, Comparable<MonoObjectiveSolution<E, T>> {
+public interface MonoObjectiveSolution<E, T extends Comparable<T>> extends Solution<E>, Comparable<Solution> {
 
     /**
      * This function allows to obtain the objective value of the individual.
@@ -42,7 +42,7 @@ public interface MonoObjectiveSolution<E, T extends Comparable<T>> extends Solut
      * @see Comparable#compareTo(java.lang.Object)
      */
     @Override
-    public int compareTo(MonoObjectiveSolution<E, T> o);
+    public int compareTo(Solution o);
 
     /**
      * This function allows you to obtain a copy of the solution. To guarantee
@@ -51,5 +51,5 @@ public interface MonoObjectiveSolution<E, T extends Comparable<T>> extends Solut
      *
      * @return A solution whose attributes are equal to the current solution.
      */
-    public MonoObjectiveSolution copy();
+    public Solution copy();
 }
