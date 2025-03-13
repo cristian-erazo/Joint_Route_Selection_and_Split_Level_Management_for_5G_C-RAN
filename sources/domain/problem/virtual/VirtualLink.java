@@ -20,6 +20,10 @@ public class VirtualLink extends Link {
      * The maximum delay request.
      */
     public double maxDelay;
+    /**
+     * The functional split option selected.
+     */
+    public int split;
 
     /**
      * This builder method instantiates a virtual link.
@@ -34,6 +38,17 @@ public class VirtualLink extends Link {
         this.indx = -1;
         this.maxDelay = maxDelay;
         this.indxPath = -1;
+        this.split = -1;
+    }
+
+    @Override
+    public VirtualLink copy() {
+        VirtualLink vLink = new VirtualLink(this.bw, this.maxDelay, this.source, this.destination);
+        vLink.indx = this.indx;
+        vLink.maxDelay = this.maxDelay;
+        vLink.indxPath = this.indxPath;
+        vLink.split = this.split;
+        return vLink;
     }
 
     @Override

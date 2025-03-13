@@ -6,6 +6,7 @@ import domain.monoobjective.implementation.greedy.comparators.RequestComparator;
 import domain.monoobjective.implementation.greedy.comparators.VirtualLinkComparator;
 import domain.paths.PathSolution;
 import domain.problem.ProblemInstance;
+import domain.problem.graph.Flow;
 import domain.problem.graph.Link;
 import domain.problem.graph.Node;
 import domain.problem.virtual.Request;
@@ -29,53 +30,50 @@ import java.util.TreeSet;
 public class GreedyPaths<T extends MatrixSolution> extends InitializationApproach<T> {
 
     private Comparator<VirtualLink> virtualLinkComparator;
-    private Comparator<PathSolution> pathsComparator;
     private Comparator<Request> requestComparator;
-    private List<PathSolution> paths;
+    private List<Node> possibleDUs;
+    private List<Node> possibleCUs;
+    private List<PathSolution> possiblePaths;
 
     public GreedyPaths(ProblemInstance instance, int popSize, Random rand) {
         super(rand, instance, popSize);
         this.virtualLinkComparator = new VirtualLinkComparator();
         this.requestComparator = new RequestComparator();
-        this.pathsComparator = new PathComparator();
-        this.paths = new ArrayList<>();
+        int nearTotalDUs = (int) (instance.DUs.size() * 0.35);
+        possibleDUs = new ArrayList<>(nearTotalDUs);
+        possibleCUs = new ArrayList<>((int) (instance.CUs.size() * 0.5));
+        possiblePaths = new ArrayList<>(3 * nearTotalDUs);
     }
 
     @Override
     public List<T> run() {
         if (popSize > 0) {
-            paths.clear();
             int n = instance.requests.length, m = instance.maxVirtualDUs * instance.step, j;
             List<T> population = new ArrayList<>();
             tCUs = new TreeSet<>();
             tDUs = new TreeSet<>();
             List<Request> requestsList = Arrays.asList(instance.requests);
             List<Request> requests = new ArrayList<>(requestsList);
-            paths.addAll(instance.mPaths[0][0]);
-            for (int k = 0; k < popSize;) {
+            for (int k = 0; k < popSize; k++) {
                 T init = initializeSolution(n, m);
                 init.accepted = new boolean[n];
                 for (int i = 0; i < instance.requests.length; i++) {//para cada peticion, asignar el orden inicial y las posiciones de la matriz
                     j = 0;//cuenta las posiciones de la columna para asignarla al grafo
                     for (VirtualNode vDU : instance.requests[i].vDUs) {//para cada nodo vDU, asignar la posicion a la que le corresponde en la matriz
                         vDU.indx = j;//asignar la posicion de la columna al nodo vDU
+                        // indice para las rutas ...
+                        instance.requests[i].vLinks[vDU.nodePosition][vDU.nears.get(0)].indx = j + instance.pathPosition;
+                        // ...
                         j += instance.step;//la siguiente posicion dependera del tipo de representacion
                     }
                     for (; j < init.getM(); j++) {
                         init.data[i][j] = -1;
                     }
                 }
-                if (k == 0) {
-                    if (!realizarAsignacion(requests, init, requestsList)) {
-                        random(init);
-                    }
-                } else {
+                if (k != 0 || !findPaths(requests, init, requestsList)) {
                     random(init);
                 }
-                //if (!population.contains(initializeSolution)) {
                 population.add(init);
-                k++;
-                //}
             }
             return population;
         }
@@ -93,13 +91,12 @@ public class GreedyPaths<T extends MatrixSolution> extends InitializationApproac
         }
     }
 
-    private boolean realizarAsignacion(List<Request> requests, MatrixSolution init, List<Request> requestsList) {
+    private boolean findPaths(List<Request> requests, MatrixSolution init, List<Request> requestsList) {
         Node DU, CU;
         Link minLink;
         boolean isValid;
         VirtualNode vDU, vCU;
         int k, nAccepted = 0, splitIndx;
-        List<PathSolution> pathsList = new ArrayList<>(paths);
         Collections.sort(requests, requestComparator);
         init.isValid = true;
         for (Request request : requests) {
@@ -115,8 +112,7 @@ public class GreedyPaths<T extends MatrixSolution> extends InitializationApproac
                     vDU = vCU;
                     vCU = request.vNodes[vLink.destination];
                 }
-                Collections.sort(pathsList, pathsComparator);
-                for (PathSolution path : pathsList) {
+                for (PathSolution path : listPossiblePaths(vDU, vCU, vLink, instance.splits[splitIndx])) {
                     CU = path.getNodesOfPath().get(0);
                     DU = path.getNodesOfPath().get(path.getNodesOfPath().size() - 1);
                     if (DU.nodeType == 2) {
@@ -155,8 +151,8 @@ public class GreedyPaths<T extends MatrixSolution> extends InitializationApproac
                         }
                     }
                     if (isValid) {
-                        int indx = mejorarSplit(splitIndx, minLink, path.getDelay(), vLink.maxDelay);
-                        asignarRecursos(init.data[k], vLink, path, vCU, vDU, CU, DU, indx);
+                        int indx = improveSplit(splitIndx, minLink, path.getDelay(), vLink.maxDelay);
+                        assignResources(init.data[k], vLink, path, vCU, vDU, CU, DU, indx);
                         break;
                     }
                 }
@@ -170,7 +166,7 @@ public class GreedyPaths<T extends MatrixSolution> extends InitializationApproac
                 tCUs.clear();
                 tDUs.clear();
             } else {
-                liberarRecursos(k, init);
+                cleanAssignments(k, init);
                 if (!tCUs.isEmpty()) {
                     tCUs.clear();
                 }
@@ -199,7 +195,7 @@ public class GreedyPaths<T extends MatrixSolution> extends InitializationApproac
      * @param maxDelay
      * @return
      */
-    private int mejorarSplit(int splitIndx, Link minLink, double pathDelay, double maxDelay) {
+    private int improveSplit(int splitIndx, Link minLink, double pathDelay, double maxDelay) {
         //la ruta es valida, elegir el mejor split
         int i = splitIndx + 1;
         while (i < instance.splits.length && (instance.splits[i].bw + minLink.usedBw) <= minLink.bw && pathDelay <= instance.splits[i].delay && pathDelay <= maxDelay) {
@@ -209,7 +205,7 @@ public class GreedyPaths<T extends MatrixSolution> extends InitializationApproac
         return splitIndx;
     }
 
-    private void liberarRecursos(int k, MatrixSolution init) {
+    private void cleanAssignments(int k, MatrixSolution init) {
         VirtualNode vDU, vCU;
         Node DU, CU;
         for (VirtualLink vLink : instance.requests[k].virtualLinks) {
@@ -253,7 +249,7 @@ public class GreedyPaths<T extends MatrixSolution> extends InitializationApproac
         }
     }
 
-    private void asignarRecursos(Integer[] data, VirtualLink vLink, PathSolution pathSolution, VirtualNode vCU, VirtualNode vDU, Node CU, Node DU, int splitIndx) {
+    private void assignResources(Integer[] data, VirtualLink vLink, PathSolution pathSolution, VirtualNode vCU, VirtualNode vDU, Node CU, Node DU, int splitIndx) {
         if (vCU.indxNode == -1) {//no se ha asignado previamente la CU
             if (!tCUs.add(CU)) {
                 System.out.println("Error: 1");
@@ -294,5 +290,41 @@ public class GreedyPaths<T extends MatrixSolution> extends InitializationApproac
     @Override
     protected T initializeSolution(int n, int m) {
         return (T) new MatrixSolution(n, m);
+    }
+
+    private List<PathSolution> listPossiblePaths(VirtualNode vDU, VirtualNode vCU, VirtualLink vLink, Flow possibleSplit) {
+        loadValidDUs(vDU);
+        loadValidCUs(vCU);
+        possiblePaths.clear();
+        for (Node DU : possibleDUs) {
+            int idx = DU.nodePosition;
+            for (Node CU : possibleCUs) {
+                int idy = CU.nodePosition;
+                for (PathSolution path : instance.allPathsFromDUs.get(idx).get(idy)) {
+                    if(ProblemInstance.validateAssignament(path, possibleSplit, vLink)) {
+                        possiblePaths.add(path);
+                    }
+                }
+            }
+        }
+        possibleDUs.clear();
+        possibleCUs.clear();
+        return possiblePaths;
+    }
+
+    private void loadValidDUs(VirtualNode vDU) {
+        for (Node DU : instance.DUs) {
+            if (ProblemInstance.validateAssignament(vDU, DU)) {
+                possibleDUs.add(DU);
+            }
+        }
+    }
+
+    private void loadValidCUs(VirtualNode vCU) {
+        for (Node CU : instance.CUs) {
+            if (ProblemInstance.validateAssignament(CU, vCU)) {
+                possibleCUs.add(CU);
+            }
+        }
     }
 }

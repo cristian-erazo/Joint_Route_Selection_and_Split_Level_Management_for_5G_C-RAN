@@ -104,21 +104,21 @@ public class PathChoicesGreedyAlgorithm extends GreedyAlgorithm {
                             }
                         }
                         if (isValid) {
-                            int indx = mejorarSplit(splitIndx, minLink, path.getDelay(), vLink.maxDelay);
+                            int indx = improveSplit(splitIndx, minLink, path.getDelay(), vLink.maxDelay);
                             asignarRecursos(best.data[k], vLink, path, vCU, vDU, CU, DU, indx);
                             selected.add(path);
-                            if (Tools.ECHO) {
+                            if (Tools.echo) {
                                 System.out.println("[" + k + "] Accepted. " + instance.splits[indx].toString() + "-" + request.vLinks[vDU.nodePosition][vCU.nodePosition].toString() + " -> " + path.toString());
                             }
                             break;
-                        } else if (Tools.ECHO) {
+                        } else if (Tools.echo) {
                             System.out.println("[" + k + "][NoResources] " + instance.splits[splitIndx].toString() + "-" + request.vLinks[vDU.nodePosition][vCU.nodePosition].toString() + " -> " + path.toString());
                         }
                     }
                 }
                 if (vLink.indxPath == -1) {//no es una solucion valida
                     best.accepted[k] = false;//marcar como no-aceptada
-                    if (Tools.ECHO) {
+                    if (Tools.echo) {
                         System.out.println("[" + k + "] Rejected.");
                     }
                     break;
@@ -131,13 +131,13 @@ public class PathChoicesGreedyAlgorithm extends GreedyAlgorithm {
             } else {
                 liberarRecursos(k, instance.mPaths[0][0]);
                 if (!tCUs.isEmpty()) {
-                    if (Tools.ECHO) {
+                    if (Tools.echo) {
                         System.out.println("Warning CUs not empty !!\ntree_CUs clear !");
                     }
                     tCUs.clear();
                 }
                 if (!tDUs.isEmpty()) {
-                    if (Tools.ECHO) {
+                    if (Tools.echo) {
                         System.out.println("Warning DUs not empty !!\ntree_DUs clear !");
                     }
                     tDUs.clear();
@@ -148,13 +148,8 @@ public class PathChoicesGreedyAlgorithm extends GreedyAlgorithm {
             }
         }
         best.setnAccepted(nAccepted);
-        if (nAccepted < 1) {
-            best.isValid = false;
-            return null;
-        } else {
-            best.gn = instance.validate(best);
-            fx.evaluate(best);
-        }
+        best.gn = instance.validate(best);
+        fx.evaluate(best);
         return best;
     }
 

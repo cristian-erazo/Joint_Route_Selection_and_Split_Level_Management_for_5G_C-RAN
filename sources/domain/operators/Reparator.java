@@ -1,6 +1,7 @@
 package domain.operators;
 
 import domain.Algorithm;
+import domain.problem.ProblemInstance;
 
 /**
  *
@@ -14,4 +15,5 @@ public interface Reparator<T> extends Algorithm {
 
     public void setIndividual(T ind);
 
+    public Reparator<T> copy(ProblemInstance p);
 }

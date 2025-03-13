@@ -21,6 +21,7 @@ import java.io.ObjectOutputStream;
 import java.io.PrintStream;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
@@ -31,61 +32,127 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 public class Tools implements Serializable {
 
-    private static Tools instance = null;
-    public static final String VERSION = "7.3.1";
+    /**
+     * Software current version.
+     */
+    public static final String VERSION = "7.6.0";
 
-    public static int K = 0;
-    public static int FxId = 0;
-    public static int init = 1;
-    public static int crxId = 0;
-    public static int repId = 0;
-    public static double mut = 2;
-    public static double C = 10.;
-    public static double T = 0.75;
-    public static double cross = 0.5;
-    public static double rank = 0.475;
-    public static double alpha = 0.75;
-    public static boolean ECHO = false;
-    public static PrintStream out = null;
-    public static boolean fitAll = false;
-    public static boolean noTime = false;
+    private static Tools instance = null;
+    /**
+     * Representation of infinite value.
+     */
     public static final int INF = 999999;
-    public static int pathsComparatorId = 1;
+    /**
+     * Upper limit for some values.
+     */
+    public static final double MAX_VALUE = 9999.9999;
+
+    /**
+     * Approximate number of genes to modify in the mutation algorithm.
+     */
+    public static double mut = 2;
+    /**
+     * Number of execution threads (0 means no threads will be used).
+     */
+    public static int numThreads = 0;
+    /**
+     * Probability used in the crossover algorithm.
+     */
+    public static double cross = 0.5;
+    /**
+     * Probability used in the stochastic ranking algorithm.
+     */
+    public static double rank = 0.475;
+    /**
+     * Variable that determines whether it will be printed to standard output.
+     */
+    public static boolean echo = false;
+    /**
+     * Determines if all requests should be accepted.
+     */
+    public static boolean fitAll = false;
+    /**
+     * Determines whether the representation of the solutions is complete or
+     * path-based.
+     */
+    public static boolean isFully = true;
+    /**
+     * Used counterweight.
+     */
     public static double counterWeight = 1.0;
-    public static boolean noSolution = false;
+    /**
+     * Determines whether the fronts obtained in each execution will be saved.
+     */
     public static boolean printFront = false;
-    public static int cuNodeComparatorId = 1;
-    public static int duNodeComparatorId = 1;
-    public static int vDuNodeComparatorId = 1;
-    public static int vCuNodeComparatorId = 1;
-    public static int requestComparatorId = 1;
-    public static double MAX_VALUE = 9999.9999;
+    /**
+     * Determines whether a maximization (true) or minimization (false) function
+     * will be used.
+     */
     public static boolean isMaximization = true;
+    /**
+     * Determines whether an online (true) or offline (false) scenario will be
+     * used.
+     */
     public static boolean runOnlineVersion = false;
 
-    private int E;
+    /**
+     * Number of routes per CU-DU pair.
+     */
+    protected static int k = 0;
+    /**
+     * Identifier of the objective function to be used.
+     */
+    protected static int fxId = 0;
+    /**
+     * Population initialization algorithm to be used.
+     */
+    protected static int init = 1;
+    /**
+     * Identifier of the crossover algorithm that will be used.
+     */
+    protected static int crxId = 0;
+    /**
+     * Identifier of the repair algorithm that will be used.
+     */
+    protected static int repId = 0;
+    protected static double c = 10.;
+    protected static double t = 0.75;
+    protected static double alpha = 0.75;
+    protected static PrintStream out = null;
+    protected static boolean noTime = false;
+    protected static int pathsComparatorId = 1;
+    protected static boolean noSolution = false;
+    protected static int cuNodeComparatorId = 1;
+    protected static int duNodeComparatorId = 1;
+    protected static int vDuNodeComparatorId = 1;
+    protected static int vCuNodeComparatorId = 1;
+    protected static int requestComparatorId = 1;
+
+    private int e;
     private long seed;
     private Random rand;
     private long nPaths;
     private Node[] nodes;
     private Link[][] links;
-    private List<Node> CUs;
-    private List<Node> DUs;
+    private List<Node> nCUs;
+    private List<Node> nDUs;
     private int maxVirtualDUs;
     private int maxVirtualCUs;
     private Request[] requests;
     private List<PathSolution>[][] paths;
+    private HashMap<Integer, HashMap<Integer, List<PathSolution>>> allPathsFromDUs;
 
     private Tools() {
-        this.E = -1;
+        this.e = -1;
         this.seed = -1;
         this.nPaths = 0;
-        this.CUs = null;
-        this.DUs = null;
+        this.nCUs = null;
+        this.nDUs = null;
         this.rand = null;
         this.nodes = null;
         this.links = null;
         this.requests = null;
+        allPathsFromDUs = HashMap.newHashMap(100);
     }
 
     /**
@@ -154,7 +221,7 @@ public class Tools implements Serializable {
         if (rand == null) {
             setSeed(-1);
         }
-        return (int) (Integer.MAX_VALUE * rand.nextDouble());
+        return rand.nextInt();
     }
 
     /**
@@ -183,7 +250,7 @@ public class Tools implements Serializable {
         return a < b ? (b - a + 1.) * getNextDouble() + a : (a - b + 1.) * getNextDouble() + b;
     }
 
-    public boolean loadGraph(File f, double g1, double g2, double g3) {
+    public boolean loadGraph(File f, double g1, double g2, double g3, boolean isOnline) {
         if (f != null) {
             char[] name = f.getName() != null ? f.getName().toCharArray() : null;
             if (f.exists() && f.isFile() && name != null) {
@@ -191,40 +258,43 @@ public class Tools implements Serializable {
                 int n, i, j;
                 if (getInt(1, name, data) && getInt(2, name, data)) {
                     n = data[1];
-                    E = data[2];
+                    e = data[2];
                     try {
                         //leer los n-nodos y las e-aristas desde el archivo
-                        BufferedReader br = new BufferedReader(new FileReader(f));
-                        nodes = new Node[n];
-                        links = new Link[n][n];
-                        CUs = new ArrayList<>();
-                        DUs = new ArrayList<>();
-                        String line;
-                        i = 0;
-                        j = 0;
-                        while ((line = br.readLine()) != null) {
-                            line = line.trim();
-                            if (line.contains("node")) {
-                                if (i < nodes.length && loadNode(br, i)) {
-                                    i++;
+                        try (BufferedReader br = new BufferedReader(new FileReader(f))) {
+                            nodes = new Node[n];
+                            links = new Link[n][n];
+                            nCUs = new ArrayList<>();
+                            nDUs = new ArrayList<>();
+                            String line;
+                            i = 0;
+                            j = 0;
+                            while ((line = br.readLine()) != null) {
+                                line = line.trim();
+                                if (line.contains("node")) {
+                                    if (i < nodes.length && loadNode(br, i, isOnline)) {
+                                        i++;
+                                    } else {
+                                        return false;
+                                    }
                                 } else {
-                                    br.close();
-                                    return false;
-                                }
-                            } else if (line.contains("edge")) {
-                                if (j < E && loadLink(br, g1, g2, g3)) {
-                                    j++;
-                                } else {
-                                    br.close();
-                                    return false;
+                                    if (line.contains("edge")) {
+                                        if (j < e && loadLink(br, g1, g2, g3)) {
+                                            j++;
+                                        } else {
+                                            return false;
+                                        }
+                                    }
                                 }
                             }
+                            if (echo) {
+                                System.out.println("Graph loaded!!");
+                                System.out.println(String.format("#Nodes: %d, #Edges: %d", i, j));
+                            }
                         }
-                        if (ECHO) {
-                            System.out.println("Graph loaded!!");
-                            System.out.println(String.format("#Nodes: %d, #Edges: %d", n, E));
+                        for (Node DU : nDUs) {
+                            allPathsFromDUs.put(DU.nodePosition, HashMap.newHashMap(nCUs.size()));
                         }
-                        br.close();
                         return true;
                     } catch (Exception ex) {
                         ex.printStackTrace(System.out);
@@ -252,74 +322,80 @@ public class Tools implements Serializable {
         return false;
     }
 
-    private boolean loadNode(BufferedReader br, int i) throws IOException {
+    private boolean loadNode(BufferedReader br, int i, boolean isOnline) throws IOException {
         /* id #
         * label $
         * x #.#
         * y #.#
+        * prc #
         * nodeType # */
         String ln;
-        int values = 4;
+        int values = isOnline ? 5 : 4;
         Node node = new Node();
         Location location = new Location();
-        while ((ln = br.readLine()) != null && values > 0) {
-            String[] data = ln.trim().split(" ");
-            if (data[0].contains("id") && node.nodePosition == -1) {
+        while ((ln = br.readLine()) != null) {
+            ln = ln.toLowerCase().trim();
+            if (ln.contains("]")) {
+                break;
+            }
+            String[] data = ln.split(" ");
+            if (data[0].equals("id") && node.nodePosition == -1) {
                 node.nodePosition = Integer.parseInt(data[1]);
                 values--;
-            } else if (data[0].contains("x") && location.x == -1) {
+            } else if (data[0].equals("x")) {
                 location.x = Double.parseDouble(data[1]);
                 values--;
-            } else if (data[0].contains("y") && location.y == -1) {
+            } else if (data[0].equals("y")) {
                 location.y = Double.parseDouble(data[1]);
                 values--;
-            } else if (data[0].contains("type") && node.nodeType == -1) {
+            } else if (data[0].equals("type") && node.nodeType == -1) {
                 node.nodeType = Integer.parseInt(data[1]);
                 if (node.nodeType == 1 || node.nodeType == 4) {
-                    values += 3;
-                } else if (node.nodeType == 3) {
+                    values += isOnline ? 1 : 3;
+                } else if (node.nodeType == 3 || isOnline) {
                     values--;
                 }
-            } else if (data[0].contains("prc")) {
+            } else if (data[0].equals("prc")) {
                 node.prc = Integer.parseInt(data[1]);
                 values--;
-            } else if (data[0].contains("ant")) {
+            } else if (data[0].equals("ant")) {
                 node.ant = Integer.parseInt(data[1]);
                 values--;
-            } else if (data[0].contains("prb")) {
+            } else if (data[0].equals("prb")) {
                 node.prb = Integer.parseInt(data[1]);
                 values--;
-            } else if (data[0].contains("theta")) {
+            } else if (data[0].equals("theta")) {
                 node.theta = Double.parseDouble(data[1]);
                 values--;
             }
         }
-        if (values > 0 || node.nodeType == -1 || node.nodePosition == -1 || location.x == -1 || location.y == -1) {
+        if (node.nodeType == -1 || node.nodePosition == -1) {
             return false;
         }
-        if ((node.nodeType == 2 || node.nodeType == 1 || node.nodeType == 4) && node.prc < 0) {
+        if (!isOnline && node.nodeType != 3 && node.prc < 0) {
             return false;
         }
-        if (node.nodeType == 1 && (node.ant < 0 || node.prb < 0 || node.theta < 0)) {
-            return false;
-        }
-        if (node.nodeType == 4 && (node.ant < 0 || node.prb < 0 || node.theta < 0)) {
+        if (!isOnline && (node.nodeType == 1 || node.nodeType == 4 && (node.ant < 0 || node.prb < 0 || node.theta < 0))) {
             return false;
         }
         node.location = location;
         nodes[i] = node;
         switch (nodes[i].nodeType) {
             case 1:
-                DUs.add(nodes[i]);
+                nDUs.add(nodes[i]);
                 break;
             case 2:
-                CUs.add(nodes[i]);
+                nCUs.add(nodes[i]);
                 break;
             case 4:
-                DUs.add(nodes[i]);
-                CUs.add(nodes[i]);
+                nDUs.add(nodes[i]);
+                nCUs.add(nodes[i]);
+                break;
             default:
                 break;
+        }
+        if (echo) {
+            System.out.println(String.format("Node %s loaded!!", node));
         }
         return true;
     }
@@ -330,7 +406,7 @@ public class Tools implements Serializable {
         * bandwith #.#
         * nodeType # */
         String line;
-        double capacity = -1, linkLength = -1;
+        double capacity = -1, linkLength = -1, cost = costFiber;
         Node to = null, from = null;
         int processingTime = 5/*1518*/, values = 5, id, linkType = -1;
         if (nodes == null) {
@@ -338,7 +414,7 @@ public class Tools implements Serializable {
         }
         while ((line = br.readLine()) != null && values > 0) {
             String[] data = line.trim().split(" ");
-            if (data[0].contains("source")) {
+            if (data[0].equals("source")) {
                 id = Integer.parseInt(data[1]);
                 if (id >= 0 && id < nodes.length) {
                     from = nodes[id];
@@ -346,7 +422,7 @@ public class Tools implements Serializable {
                 } else {
                     return false;
                 }
-            } else if (data[0].contains("target")) {
+            } else if (data[0].equals("target")) {
                 id = Integer.parseInt(data[1]);
                 if (id >= 0 && id < nodes.length) {
                     to = nodes[id];
@@ -354,27 +430,36 @@ public class Tools implements Serializable {
                 } else {
                     return false;
                 }
-            } else if (data[0].contains("bandwith")) {
-                capacity = Double.parseDouble(data[1]);
+            } else if (data[0].equals("bandwith")) {
+                capacity = Double.parseDouble(data[1]) * 10;
                 values--;
-            } else if (data[0].contains("type")) {
+            } else if (data[0].equals("type")) {
                 linkType = Integer.parseInt(data[1]);
                 values--;
-            } else if (data[0].contains("distance")) {
+            } else if (data[0].equals("distance")) {
                 linkLength = Double.parseDouble(data[1]);
+                if (linkLength == 0) {
+                    linkLength = 0.01;
+                }
                 values--;
             }
         }
         if (values > 0 || linkType < 0 || from == null || to == null || capacity < 0 || linkLength < 0) {
             return false;
         }
-        links[from.nodePosition][to.nodePosition] = new Link(capacity, processingTime, linkLength, (linkType == 1 ? costFiber : linkType == 2 ? costCopper : costWireless), linkType, from.nodePosition, to.nodePosition);
+        if (linkType != 1) {
+            cost = linkType == 2 ? costCopper : costWireless;
+        }
+        links[from.nodePosition][to.nodePosition] = new Link(capacity, processingTime, linkLength, cost, linkType, from.nodePosition, to.nodePosition);
         links[to.nodePosition][from.nodePosition] = links[from.nodePosition][to.nodePosition];
         if (!from.nears.contains(to.nodePosition)) {
             from.nears.add(to.nodePosition);
         }
         if (!to.nears.contains(from.nodePosition)) {
             to.nears.add(from.nodePosition);
+        }
+        if (echo) {
+            System.out.println(String.format("Link %s loaded!!", links[from.nodePosition][to.nodePosition]));
         }
         return true;
     }
@@ -388,7 +473,7 @@ public class Tools implements Serializable {
     }
 
     public int getE() {
-        return E;
+        return e;
     }
 
     public Request[] getRequests() {
@@ -410,24 +495,19 @@ public class Tools implements Serializable {
         int maxN = 0, n;
         for (File file : files) {
             i = Integer.parseInt(file.getName().split("n")[0].split("R")[1]) - 1;
-            if (ECHO) {
+            if (echo) {
                 System.out.println(String.format("Loading request: %s", file.getName()));
             }
             if (!loadRequest(file, requests[i])) {
                 return false;
             } else {
                 n = requests[i].vCUs.size() + requests[i].vDUs.size() * 3;
-                if (requests[i].vCUs.size() > maxVirtualCUs) {
-                    maxVirtualCUs = requests[i].vCUs.size();
-                }
-                if (requests[i].vDUs.size() > maxVirtualDUs) {
-                    maxVirtualDUs = requests[i].vDUs.size();
-                }
                 if (maxN < n) {
                     maxN = n;
+                    maxVirtualCUs = requests[i].vCUs.size();
+                    maxVirtualDUs = requests[i].vDUs.size();
                 }
             }
-            i++;
         }
         return true;
     }
@@ -461,38 +541,36 @@ public class Tools implements Serializable {
             nEnlaces = data[2];
             try {
                 //leer los n-nodos y las e-aristas desde el archivo
-                BufferedReader br = new BufferedReader(new FileReader(file));
-                request.vNodes = new VirtualNode[nNodos];
-                request.vLinks = new VirtualLink[nNodos][nNodos];
-                request.virtualLinks = new ArrayList<>();
-                request.vCUs = new ArrayList<>();
-                request.vDUs = new ArrayList<>();
-                String line;
-                i = 0;
-                j = 0;
-                while ((line = br.readLine()) != null) {
-                    line = line.trim();
-                    if (line.contains("node")) {
-                        if (i < request.vNodes.length && loadVirtualNode(br, i, request)) {
-                            i++;
-                        } else {
-                            br.close();
-                            return false;
-                        }
-                    } else if (line.contains("edge")) {
-                        if (j < nEnlaces && loadVirtualLink(br, request)) {
-                            j++;
-                        } else {
-                            br.close();
-                            return false;
+                try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+                    request.vNodes = new VirtualNode[nNodos];
+                    request.vLinks = new VirtualLink[nNodos][nNodos];
+                    request.virtualLinks = new ArrayList<>();
+                    request.vCUs = new ArrayList<>();
+                    request.vDUs = new ArrayList<>();
+                    String line;
+                    i = 0;
+                    j = 0;
+                    while ((line = br.readLine()) != null) {
+                        line = line.trim();
+                        if (line.contains("node")) {
+                            if (i < request.vNodes.length && loadVirtualNode(br, i, request)) {
+                                i++;
+                            } else {
+                                return false;
+                            }
+                        } else if (line.contains("edge")) {
+                            if (j < nEnlaces && loadVirtualLink(br, request)) {
+                                j++;
+                            } else {
+                                return false;
+                            }
                         }
                     }
+                    if (echo) {
+                        System.out.println("Request loaded !");
+                        System.out.println(String.format("#Virtual Nodes: %d, #Virtual Edges: %d", nNodos, nEnlaces));
+                    }
                 }
-                if (ECHO) {
-                    System.out.println("Request loaded !");
-                    System.out.println(String.format("#Virtual Nodes: %d, #Virtual Edges: %d", nNodos, nEnlaces));
-                }
-                br.close();
                 return true;
             } catch (Exception ex) {
                 ex.printStackTrace(System.out);
@@ -509,21 +587,21 @@ public class Tools implements Serializable {
         int values = 2, nodePosition = -1, nodeType = -1, ant = -1, prb = -1, prc = -1;
         while ((ln = br.readLine()) != null && values > 0) {
             String[] data = ln.trim().split(" ");
-            if (data[0].contains("id") && nodePosition == -1) {
+            if (data[0].equals("id") && nodePosition == -1) {
                 nodePosition = Integer.parseInt(data[1]);
                 values--;
-            } else if (data[0].contains("type") && nodeType == -1) {
+            } else if (data[0].equals("type") && nodeType == -1) {
                 nodeType = Integer.parseInt(data[1]);
                 if (nodeType == 1) {
                     values += 4;
                 }
-            } else if (data[0].contains("prc")) {
+            } else if (data[0].equals("prc")) {
                 prc = Integer.parseInt(data[1]);
                 values--;
-            } else if (data[0].contains("x") && location.x == -1) {
+            } else if (data[0].equals("x")) {
                 location.x = Double.parseDouble(data[1]);
                 values--;
-            } else if (data[0].contains("y") && location.y == -1) {
+            } else if (data[0].equals("y")) {
                 location.y = Double.parseDouble(data[1]);
                 values--;
             } else if (data[0].contains("ant")) {
@@ -537,12 +615,12 @@ public class Tools implements Serializable {
         if (values > 0 || nodeType == -1 || nodePosition == -1 || prc == -1) {
             return false;
         }
-        if (nodeType == 1 && (ant < 0 || location.x == -1 || location.y == -1 || prb < 0)) {
+        if (nodeType == 1 && (ant < 0 || prb < 0)) {
             return false;
         }
         request.vNodes[i] = new VirtualNode(-1, -1, nodeType, i, location, new ArrayList<Integer>());
         request.vNodes[i].prc = prc;
-        if (nodeType == 1) {//DU request
+        if (nodeType == 1) {//RU request
             request.vNodes[i].ant = ant;
             request.vNodes[i].prb = prb;
             request.vDUs.add(request.vNodes[i]);
@@ -606,34 +684,34 @@ public class Tools implements Serializable {
     public boolean savePaths(File file, boolean isFully) {
         try {
             if (paths != null && nPaths > 0) {
-                ObjectOutputStream ous = new ObjectOutputStream(new FileOutputStream(file));
-                List<List<Integer>> allPaths = new ArrayList<>();
-                if (isFully) {
-                    for (Node DU : DUs) {
-                        for (Node CU : CUs) {
-                            if (paths[DU.nodePosition][CU.nodePosition] != null) {
-                                for (PathSolution path : paths[DU.nodePosition][CU.nodePosition]) {
-                                    List<Integer> nodos = new ArrayList<>();
-                                    for (Node node : path.getNodesOfPath()) {
-                                        nodos.add(node.nodePosition);
+                try (ObjectOutputStream ous = new ObjectOutputStream(new FileOutputStream(file))) {
+                    List<List<Integer>> allPaths = new ArrayList<>();
+                    if (isFully) {
+                        for (Node DU : nDUs) {
+                            for (Node CU : nCUs) {
+                                if (paths[DU.nodePosition][CU.nodePosition] != null) {
+                                    for (PathSolution path : paths[DU.nodePosition][CU.nodePosition]) {
+                                        List<Integer> nodos = new ArrayList<>();
+                                        for (Node node : path.getNodesOfPath()) {
+                                            nodos.add(node.nodePosition);
+                                        }
+                                        allPaths.add(nodos);
                                     }
-                                    allPaths.add(nodos);
                                 }
                             }
                         }
-                    }
-                } else {
-                    for (PathSolution path : paths[0][0]) {
-                        List<Integer> nodos = new ArrayList<>();
-                        for (Node node : path.getNodesOfPath()) {
-                            nodos.add(node.nodePosition);
+                    } else {
+                        for (PathSolution path : paths[0][0]) {
+                            List<Integer> nodos = new ArrayList<>();
+                            for (Node node : path.getNodesOfPath()) {
+                                nodos.add(node.nodePosition);
+                            }
+                            allPaths.add(nodos);
                         }
-                        allPaths.add(nodos);
                     }
+                    ous.writeLong(nPaths);
+                    ous.writeObject(allPaths);
                 }
-                ous.writeLong(nPaths);
-                ous.writeObject(allPaths);
-                ous.close();
                 return true;
             }
         } catch (Exception ex) {
@@ -644,10 +722,11 @@ public class Tools implements Serializable {
 
     public boolean loadPaths(File file, boolean isFully) {
         try {
-            ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file));
-            nPaths = ois.readLong();
-            List<List<Integer>> allPaths = (List<List<Integer>>) ois.readObject();
-            ois.close();
+            List<List<Integer>> allPaths;
+            try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file))) {
+                nPaths = ois.readLong();
+                allPaths = (List<List<Integer>>) ois.readObject();
+            }
             // replace the old-nodes|links-references to the new nodes|links references
             if (isFully) {
                 paths = new ArrayList[nodes.length][nodes.length];
@@ -670,6 +749,7 @@ public class Tools implements Serializable {
                     if (paths[j][i] == null) {
                         paths[j][i] = paths[i][j];
                     }
+                    addPath(newPathSolution);
                 }
             } else {
                 paths = new ArrayList[1][1];
@@ -686,6 +766,7 @@ public class Tools implements Serializable {
                         last = nodes[node];
                     }
                     paths[0][0].add(newPathSolution);
+                    addPath(newPathSolution);
                 }
             }
             return true;
@@ -693,6 +774,20 @@ public class Tools implements Serializable {
             ex.printStackTrace(System.out);
         }
         return false;
+    }
+
+    private void addPath(PathSolution path) {
+        Node nDU = path.getNodesOfPath().get(0);
+        Node nCU = path.getNodesOfPath().get(path.getNodesOfPath().size() - 1);
+        if (nDU.nodeType == 2) {
+            Node aux = nDU;
+            nDU = nCU;
+            nCU = aux;
+        }
+        if (!allPathsFromDUs.get(nDU.nodePosition).containsKey(nCU.nodePosition)) {
+            allPathsFromDUs.get(nDU.nodePosition).put(nCU.nodePosition, new ArrayList<>());
+        }
+        allPathsFromDUs.get(nDU.nodePosition).get(nCU.nodePosition).add(path);
     }
 
     public void loadBoundaries(ProblemInstance p) {
@@ -715,7 +810,7 @@ public class Tools implements Serializable {
                         p.min.data[i][j + p.pathPosition] = 0;
                         p.min.data[i][j + p.splitPosition] = 0;
                         p.max.data[i][j] = p.DUs.size();
-                        p.max.data[i][j + p.pathPosition] = K;
+                        p.max.data[i][j + p.pathPosition] = k;
                         p.max.data[i][j + p.splitPosition] = p.splits.length;
                         j += p.step;//la siguiente posicion dependera del tipo de representacion
                     }
@@ -733,6 +828,7 @@ public class Tools implements Serializable {
                 }
             }
         }
+        p.allPathsFromDUs = allPathsFromDUs;
     }
 
     public static double variance(double[] data) {
@@ -750,11 +846,11 @@ public class Tools implements Serializable {
     }
 
     public void setDUs(List<Node> DUs) {
-        this.DUs = DUs;
+        this.nDUs = DUs;
     }
 
     public void setCUs(List<Node> CUs) {
-        this.CUs = CUs;
+        this.nCUs = CUs;
     }
 
     public void setPaths(List<PathSolution>[][] paths) {
@@ -774,16 +870,20 @@ public class Tools implements Serializable {
     }
 
     public List<Node> getCUs() {
-        return CUs;
+        return nCUs;
     }
 
     public List<Node> getDUs() {
-        return DUs;
+        return nDUs;
 
     }
 
     void setRequests(Request[] requests) {
         this.requests = requests;
+    }
+
+    public HashMap<Integer, HashMap<Integer, List<PathSolution>>> getAllPathsFromDUs() {
+        return allPathsFromDUs;
     }
 }
 

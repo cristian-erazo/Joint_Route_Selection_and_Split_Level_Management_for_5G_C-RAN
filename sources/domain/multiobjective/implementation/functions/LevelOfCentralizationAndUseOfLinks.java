@@ -1,5 +1,6 @@
 package domain.multiobjective.implementation.functions;
 
+import domain.EvaluationFunction;
 import domain.multiobjective.MultiObjectiveFunction;
 import domain.multiobjective.implementation.MultiObjectiveMatrixSolution;
 import domain.problem.ProblemInstance;
@@ -220,5 +221,10 @@ public class LevelOfCentralizationAndUseOfLinks extends MultiObjectiveFunction {
         } else {
             throw new ArrayIndexOutOfBoundsException();
         }
+    }
+
+    @Override
+    public EvaluationFunction copy(ProblemInstance p) {
+        return new LevelOfCentralizationAndUseOfLinks(p, w1, w2, w3, isMaximization);
     }
 }

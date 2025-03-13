@@ -54,7 +54,7 @@ public class MOEA extends MultiObjectiveMetaheuristic<MultiObjectiveMatrixSoluti
         List<MultiObjectiveMatrixSolution> population = initalization.run();
         population = evaluatePopulation(population);
 //        selected.add(new ArrayList<>(population));
-        if (Tools.ECHO) {
+        if (Tools.echo) {
             System.out.print(String.format("[%d] AvgFx: %f Best: %f %b\n", it, avgFx, best.getObjective(), best.isValid));
         }
         while (it < numIterations) {
@@ -73,7 +73,7 @@ public class MOEA extends MultiObjectiveMetaheuristic<MultiObjectiveMatrixSoluti
             selection.setList(population);
             selection.setSelectionSize(popSize);
             population = selection.run();
-            if (Tools.ECHO) {
+            if (Tools.echo) {
                 System.out.print(String.format("[%d] AvgFx: %f Best: %s", it, avgFx, best));
 //                if (it % 20 == 0) {
 //                    selected.add(new ArrayList<>(population));
@@ -88,7 +88,7 @@ public class MOEA extends MultiObjectiveMetaheuristic<MultiObjectiveMatrixSoluti
         best.setObjective(-1.);
         best.gn = instance.validate(best);
         fx.evaluate(best);
-        if (Tools.ECHO) {
+        if (Tools.echo) {
             System.out.println(String.format("[%d] Best: %s", best.it, best.toString()));
         }
         return nonDominatedSolutions;

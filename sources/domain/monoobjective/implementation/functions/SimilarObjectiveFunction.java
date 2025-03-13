@@ -1,5 +1,6 @@
 package domain.monoobjective.implementation.functions;
 
+import domain.EvaluationFunction;
 import domain.monoobjective.implementation.MatrixSolution;
 import domain.monoobjective.implementation.ObjectiveFunction;
 import domain.problem.ProblemInstance;
@@ -21,4 +22,9 @@ public class SimilarObjectiveFunction extends ObjectiveFunction {
     protected Double eval(MatrixSolution s) {
         return C * super.eval(s) + s.nAccepted;
     }// x = C * F + Accp --> F = (x - Accp)/C
+
+    @Override
+    public EvaluationFunction<Double, MatrixSolution> copy(ProblemInstance p) {
+        return new SimilarObjectiveFunction(p, w1, w2, w3, isMaximization, C);
+    }
 }

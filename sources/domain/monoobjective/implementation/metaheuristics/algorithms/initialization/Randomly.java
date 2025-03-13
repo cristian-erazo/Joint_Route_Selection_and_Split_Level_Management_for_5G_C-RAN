@@ -44,6 +44,9 @@ public class Randomly<T extends MatrixSolution> extends InitializationApproach<T
                                 init.data[i][j] = instance.DUs.get(rand.nextInt(instance.max.data[i][j])).nodePosition;
                                 init.data[i][j + instance.pathPosition] = instance.min.data[i][j + instance.pathPosition] + rand.nextInt(instance.max.data[i][j + instance.pathPosition] - instance.min.data[i][j + instance.pathPosition]);
                                 init.data[i][j + instance.splitPosition] = instance.min.data[i][j + instance.splitPosition] + rand.nextInt(instance.max.data[i][j + instance.splitPosition] - instance.min.data[i][j + instance.splitPosition]);
+                                // indice para las rutas ...
+                                instance.requests[i].vLinks[vdu][vCU.nodePosition].indx = j + instance.pathPosition;
+                                // ...
                                 j += instance.step;//la siguiente posicion dependera del tipo de representacion
                             }
                         }
@@ -64,6 +67,9 @@ public class Randomly<T extends MatrixSolution> extends InitializationApproach<T
                             vDU.indx = j;//asignar la posicion de la columna al nodo vDU
                             init.data[i][j] = instance.min.data[i][j] + (Objects.equals(instance.max.data[i][j], instance.min.data[i][j]) ? 0 : rand.nextInt(instance.max.data[i][j] - instance.min.data[i][j]));
                             init.data[i][j + instance.splitPosition] = instance.min.data[i][j + instance.splitPosition] + rand.nextInt(instance.max.data[i][j + instance.splitPosition] - instance.min.data[i][j + instance.splitPosition]);
+                            // indice para las rutas ...
+                            instance.requests[i].vLinks[vDU.nodePosition][vDU.nears.get(0)].indx = j + instance.pathPosition;
+                            // ...
                             j += instance.step;//la siguiente posicion dependera del tipo de representacion
                         }
                         for (; j < init.getM(); j++) {

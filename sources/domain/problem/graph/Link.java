@@ -65,7 +65,7 @@ public class Link implements Serializable {
 
     @Override
     public String toString() {
-        return String.format("(%.2f|%.2f)", bw, usedBw);
+        return String.format("[%d-%d](%.2f|%.2f)", source, destination, bw, usedBw);
     }
 
     @Override
@@ -74,6 +74,12 @@ public class Link implements Serializable {
         return source == o.source && destination == o.destination;
     }
 
+    public Link copy() {
+        Link l = new Link(bw, processingTime, linkLength, linkCost, linkType, source, destination);
+        l.usedBw = usedBw;
+        return l;
+    }
+    
     public Link copySubInstance() {
         return new Link(bw - usedBw, processingTime, linkLength, linkCost, linkType, source, destination);
     }

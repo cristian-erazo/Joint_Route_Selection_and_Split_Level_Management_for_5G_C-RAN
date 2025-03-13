@@ -11,7 +11,7 @@ import java.util.List;
 public class Node implements Comparable<Node>, Serializable {
 
     /**
-     * The nodeType of the node: 1=DU, 2=CU,3=v, 4=DUandCU.
+     * The nodeType of the node: 1=DU, 2=CU,3=trans, 4=both:DU-CU.
      */
     public int nodeType;
     /**
@@ -92,10 +92,22 @@ public class Node implements Comparable<Node>, Serializable {
     @Override
     public String toString() {
         if (nodeType == 1) {
-            return String.format("(%d|%d-%d,%d-%d)", nodePosition, prc, usedPRC, prb, usedPRB);
+            return String.format("%d|(%d|%d-%d,%d-%d,%.0f)", nodeType, nodePosition, prc, usedPRC, prb, usedPRB, theta);
         } else {
-            return String.format("(%d|%d-%d)", nodePosition, prc, usedPRC);
+            return String.format("%d|(%d|%d-%d)", nodeType, nodePosition, prc, usedPRC);
         }
+    }
+
+    public Node copy() {
+        Node copy = new Node(nodeType, nodePosition, location, nears);
+        copy.ant = ant;
+        copy.prb = prb;
+        copy.prc = prc;
+        copy.theta = theta;
+        copy.usedPRC = usedPRC;
+        copy.usedANT = usedANT;
+        copy.usedPRB = usedPRB;
+        return copy;
     }
 
     public Node copySubInstance() {

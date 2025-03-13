@@ -72,6 +72,9 @@ public class GreedyFull<T extends MatrixSolution> extends InitializationApproach
                         j++;//la posicion de la DU sera la inmediatamente siguiente
                         for (Integer vdu : vCU.nears) {//obtener los nodos DU a los que se conecta (cada CU se conecta por un enlace)
                             instance.requests[i].vNodes[vdu].indx = j;//asignar posiciones relativas al nodo vCU
+                            // indice para las rutas ...
+                            instance.requests[i].vLinks[vdu][vCU.nodePosition].indx = j + instance.pathPosition;
+                            // ...
                             j += instance.step;//la siguiente posicion dependera del tipo de representacion
                         }
                     }

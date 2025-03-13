@@ -60,6 +60,7 @@ public abstract class GreedyAlgorithm implements MonoObjectiveAlgorithm<Integer[
                     pos++;//la posicion de la DU sera la inmediatamente siguiente
                     for (Integer vdu : vCU.nears) {//obtener los nodos DU a los que se conecta (cada CU se conecta por un enlace)
                         instance.requests[k].vNodes[vdu].indx = pos;//asignar posiciones relativas al nodo vCU
+                        instance.requests[k].vLinks[vdu][vCU.nodePosition].indx = pos + instance.pathPosition;//posiciones relativas a la ruta
                         pos += instance.step;//la siguiente posicion dependera del tipo de representacion
                     }
                 }
@@ -77,6 +78,7 @@ public abstract class GreedyAlgorithm implements MonoObjectiveAlgorithm<Integer[
                         if (instance.requests[k].vNodes[vcu].indx == -1) {
                             instance.requests[k].vNodes[vcu].indx = pos;
                         }
+                        instance.requests[k].vLinks[vDU.nodePosition][vcu].indx = pos + instance.pathPosition;//posiciones relativas a la ruta
                     }
                     vDU.indx = pos;//asignar posiciones relativas al nodo vCU
                     pos += instance.step;//la siguiente posicion dependera del tipo de representacion
@@ -96,7 +98,7 @@ public abstract class GreedyAlgorithm implements MonoObjectiveAlgorithm<Integer[
      * @param maxDelay
      * @return
      */
-    protected int mejorarSplit(int splitIndx, Link minLink, double pathDelay, double maxDelay) {
+    protected int improveSplit(int splitIndx, Link minLink, double pathDelay, double maxDelay) {
         //la ruta es valida, elegir el mejor split
         int i = splitIndx + 1;
         while (i < instance.splits.length && (instance.splits[i].bw + minLink.usedBw) <= minLink.bw && pathDelay <= instance.splits[i].delay && pathDelay <= maxDelay) {

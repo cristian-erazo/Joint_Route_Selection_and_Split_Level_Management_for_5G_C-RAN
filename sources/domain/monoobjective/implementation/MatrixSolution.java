@@ -199,12 +199,8 @@ public class MatrixSolution implements MonoObjectiveSolution<Integer[], Double> 
             }
         } else {
             for (int i = 0; i < data.length; i++) {
-                if (accepted[i] != o.accepted[i]) {
+                if (accepted[i] != o.accepted[i] || (accepted[i] && !Arrays.equals(data[i], o.data[i]))) {
                     return false;
-                } else if (accepted[i]) {
-                    if (!Arrays.equals(data[i], o.data[i])) {
-                        return false;
-                    }
                 }
             }
         }
@@ -226,7 +222,8 @@ public class MatrixSolution implements MonoObjectiveSolution<Integer[], Double> 
     }
 
     public double distance(MatrixSolution s) {
-        double distance = 0, dif;
+        double distance = 0;
+        int dif;
         for (int i = 0; i < n; i++) {
             for (int j = 0; j < m; j++) {
                 if (data[i][j] == -1 && s.data[i][j] == -1) {

@@ -221,7 +221,7 @@ public class ExhaustiveSearch implements MonoObjectiveAlgorithm<MatrixSolution, 
             }
         }
         it++;
-        if (Tools.ECHO) {
+        if (Tools.echo) {
             printState(solution);//imprime el estado actual del sistema
         }
     }

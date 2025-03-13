@@ -20,9 +20,9 @@ public class ObjectiveFunction implements EvaluationFunction<Double, MatrixSolut
 
     protected final ProblemInstance instance;
     protected boolean isMaximization;
-    private final double w1;
-    private final double w2;
-    private final double w3;
+    protected final double w1;
+    protected final double w2;
+    protected final double w3;
     private List<List<Node>> pools;
     private List<Link> usedLinks;
     private FitnessComparator fc;
@@ -277,6 +277,11 @@ public class ObjectiveFunction implements EvaluationFunction<Double, MatrixSolut
         } else {
             return va < vb;
         }
+    }
+
+    @Override
+    public EvaluationFunction<Double, MatrixSolution> copy(ProblemInstance p) {
+        return new ObjectiveFunction(p, w1, w2, w3, isMaximization);
     }
 }
 

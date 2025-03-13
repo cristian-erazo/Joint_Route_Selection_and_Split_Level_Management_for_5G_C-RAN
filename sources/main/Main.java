@@ -21,7 +21,7 @@ public class Main {
         if (args.length > 0) {
             for (String arg : args) {
                 if ("-verbose".compareToIgnoreCase(arg) == 0) {
-                    Tools.ECHO = true;
+                    Tools.echo = true;
                     av--;
                 }
                 if ("-version".compareToIgnoreCase(arg) == 0) {

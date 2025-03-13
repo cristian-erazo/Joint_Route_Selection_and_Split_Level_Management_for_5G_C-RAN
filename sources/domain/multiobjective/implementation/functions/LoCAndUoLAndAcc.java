@@ -1,11 +1,12 @@
 package domain.multiobjective.implementation.functions;
 
+import domain.EvaluationFunction;
 import domain.multiobjective.implementation.MultiObjectiveMatrixSolution;
 import domain.problem.ProblemInstance;
 
 /**
  *
- * @author D_mon
+ * @author cristian.erazo@cinvestav.mx
  */
 public class LoCAndUoLAndAcc extends LevelOfCentralizationAndUseOfLinks {
 
@@ -23,5 +24,10 @@ public class LoCAndUoLAndAcc extends LevelOfCentralizationAndUseOfLinks {
                 return ((double) s.nAccepted) / ((double) instance.requests.length);
         }
         return 0.;
+    }
+
+    @Override
+    public EvaluationFunction copy(ProblemInstance p) {
+        return new LoCAndUoLAndAcc(p, w1, w2, w3, isMaximization);
     }
 }

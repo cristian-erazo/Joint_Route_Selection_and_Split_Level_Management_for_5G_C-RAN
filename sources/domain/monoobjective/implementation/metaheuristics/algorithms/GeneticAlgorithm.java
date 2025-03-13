@@ -1,5 +1,6 @@
 package domain.monoobjective.implementation.metaheuristics.algorithms;
 
+import domain.util.threads.RunObjective;
 import domain.EvaluationFunction;
 import domain.monoobjective.implementation.MatrixSolution;
 import domain.monoobjective.implementation.metaheuristics.Metaheuristic;
@@ -22,21 +23,17 @@ import java.util.Random;
  */
 public class GeneticAlgorithm extends Metaheuristic<MatrixSolution> {
 
-    protected long it;
-    protected double avgFx;
     protected final int popSize;
     protected Mutation<MatrixSolution> mutation;
     protected Crossover<MatrixSolution> crossover;
     protected Selection<MatrixSolution> selection;
-    protected Reparator<MatrixSolution> reparator;
     protected Initialization<MatrixSolution> initalization;
-
     public List<CrowdingDistanceMatrixSolution> paretoFront;
     private List<CrowdingDistanceMatrixSolution> remove;
     private CrowdingDistanceComparator comparator;
 
     public GeneticAlgorithm(ProblemInstance instance, EvaluationFunction<Double, MatrixSolution> fx, Mutation<MatrixSolution> mutation, Crossover<MatrixSolution> crossover, Selection<MatrixSolution> selection, Initialization<MatrixSolution> initialization, Reparator<MatrixSolution> reparator, Random rand, int numIterations, int popSize) {
-        super(instance, fx, rand, numIterations);
+        super(instance, fx, rand, numIterations, Tools.numThreads);
         this.popSize = popSize;
         this.mutation = mutation;
         this.crossover = crossover;
@@ -52,11 +49,9 @@ public class GeneticAlgorithm extends Metaheuristic<MatrixSolution> {
         int nChilds = popSize / 2;
         numNotValidSolutions = it = 0;
         crossover.setNumberOfChilds(nChilds);
-//        List<List<MatrixSolution>> selected = new ArrayList<>();
         List<MatrixSolution> population = initalization.run();
         evaluatePopulation(population);
-//        selected.add(new ArrayList<>(population));
-        if (Tools.ECHO) {
+        if (Tools.echo) {
             System.out.println(String.format("[%d] AvgFx: %f Best: %f %b", it, avgFx, best.getObjective(), best.isValid));
         }
         while (it < numIterations) {
@@ -70,17 +65,16 @@ public class GeneticAlgorithm extends Metaheuristic<MatrixSolution> {
                     population.add(h);
                 }
             }
-            evaluatePopulation(population);
+            if (threads == null) {
+                evaluatePopulation(population);
+            } else {
+                concurrentEvaluatePopulation(population);
+            }
             selection.setList(population);
             selection.setSelectionSize(popSize);
             population = selection.run();
-            if (Tools.ECHO) {
-                System.out.print(String.format("[%d] AvgFx: %f Best: %s", it, avgFx, best.toString()));
-//                if (it % 20 == 0) {
-//                    selected.add(new ArrayList<>(population));
-//                    System.out.print(String.format(" Dv: %.3g ", fx.evaluateDiversity(selected.remove(0), population)));
-//                }
-                System.out.println();
+            if (Tools.echo) {
+                System.out.print(String.format("[%d] AvgFx: %f Best: %s\n", it, avgFx, best.toString()));
             }
             if (paretoFront != null && paretoFront.size() > popSize) {
                 reduceByCrowdingDistance();
@@ -89,7 +83,7 @@ public class GeneticAlgorithm extends Metaheuristic<MatrixSolution> {
         best.setObjective(-1.);
         best.gn = instance.validate(best);
         fx.evaluate(best);
-        if (Tools.ECHO) {
+        if (Tools.echo) {
             System.out.println(String.format("[%d] Best: %s", best.it, best));
         }
         return best;
@@ -108,21 +102,32 @@ public class GeneticAlgorithm extends Metaheuristic<MatrixSolution> {
                 if (solution.gn > 0) {
                     numNotValidSolutions++;
                 }
-                /*double val = */
                 fx.evaluate(solution);
-                //solution.setObjective((fx.isMaximization() ? val - (solution.gn * solution.gn) : val + (solution.gn * solution.gn)));
                 if (best == null || fx.isBetter(solution, best)) {//si solucion actual es mejor, entonces actualizar la mejor solucion
                     best = (MatrixSolution) solution.copy();
                 }
                 if (Tools.printFront && solution.gn == 0 && solution.isValid) {
                     updateFront(solution);
                 }
-                //solution.setObjective(val);
             }
             avgFx += solution.getObjective();
         }
         avgFx /= (double) population.size();
         return avgFx;
+    }
+
+    @Override
+    protected void getThreadResults(RunObjective thread) {
+        if (thread.getBestSolution() != null && (best == null || fx.isBetter(thread.getBestSolution(), best))) {//si solucion actual es mejor, entonces actualizar la mejor solucion
+            best = (MatrixSolution) thread.getBestSolution();
+        }
+        if (Tools.printFront) {
+            for (MatrixSolution candidateSolution : thread.getCandidateSolutions()) {
+                if (candidateSolution.gn == 0 && candidateSolution.isValid) {
+                    updateFront(candidateSolution);
+                }
+            }
+        }
     }
 
     /**

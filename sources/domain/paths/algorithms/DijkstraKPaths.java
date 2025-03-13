@@ -96,14 +96,14 @@ public class DijkstraKPaths extends SearchPath {
     private List<PathSolution> getKPaths(Node DU, Node CU) {
         List<PathSolution> A, B;
         PathSolution p = dijkstra(DU, CU);
-        if (Tools.ECHO) {
+        if (Tools.echo) {
             System.out.println("From " + DU.nodePosition + " To " + CU.nodePosition);
         }
         if (p != null) {
             A = new ArrayList<>();
             B = new ArrayList<>();
             A.add(p);
-            if (Tools.ECHO) {
+            if (Tools.echo) {
                 System.out.print(String.format("[%d]", nPaths));
                 for (Node node : p.getNodesOfPath()) {
                     System.out.print(" " + node.nodePosition);
@@ -151,7 +151,7 @@ public class DijkstraKPaths extends SearchPath {
                     break;
                 }
                 Collections.sort(B);
-                if (Tools.ECHO) {
+                if (Tools.echo) {
                     System.out.print(String.format("[%d]", nPaths));
                     for (Node node : B.get(0).getNodesOfPath()) {
                         System.out.print(" " + node.nodePosition);

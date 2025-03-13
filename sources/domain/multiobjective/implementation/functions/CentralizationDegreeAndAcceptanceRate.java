@@ -1,5 +1,7 @@
 package domain.multiobjective.implementation.functions;
 
+import domain.EvaluationFunction;
+import domain.monoobjective.implementation.MatrixSolution;
 import domain.multiobjective.MultiObjectiveFunction;
 import domain.multiobjective.implementation.MultiObjectiveMatrixSolution;
 import domain.problem.ProblemInstance;
@@ -188,5 +190,10 @@ public class CentralizationDegreeAndAcceptanceRate extends MultiObjectiveFunctio
                 pool.add(n);
             }
         }
+    }
+
+    @Override
+    public EvaluationFunction copy(ProblemInstance p) {
+        return new CentralizationDegreeAndAcceptanceRate(w1, w2, w3, p, isMaximization);
     }
 }

@@ -82,7 +82,7 @@ public class SCRDF_MIP {
         env = new GRBEnv();
         model = new GRBModel(env);
         // set the output text off
-        if (!Tools.ECHO) {
+        if (!Tools.echo) {
             model.set(GRB.IntParam.LogToConsole, 0);
             model.set(GRB.StringParam.LogFile, "");
             model.set(GRB.IntParam.OutputFlag, 0);
@@ -363,7 +363,7 @@ public class SCRDF_MIP {
             for (int i = 0; i < n_vDUs; i++) {
                 if (i < instance.requests[r].vDUs.size()) {
                     for (int j = 0; j < nDUs; ++j) {
-                        double d = ProblemInstance.distance(instance.requests[r].vDUs.get(i).location, instance.DUs.get(j).location);
+                        double d = Math.hypot(instance.DUs.get(j).location.x - instance.requests[r].vDUs.get(i).location.x, instance.DUs.get(j).location.y - instance.requests[r].vDUs.get(i).location.y);
                         GRBQuadExpr du_distance = new GRBQuadExpr();//radio de cobertura de cada DU
                         du_distance.addTerm(d, b_req_vDU_DU[r][i][j]);
                         model.addQConstr(du_distance, GRB.LESS_EQUAL, instance.DUs.get(j).theta, "R_" + r + "_vDU_" + i + "_DIST_DU_" + j);
@@ -737,7 +737,7 @@ public class SCRDF_MIP {
         if (Fx == null) {
             Fx = new ObjectiveFunction(instance, 0.7, 0.2, 0.1, true);
         }
-        boolean aux = Tools.ECHO;
+        boolean aux = Tools.echo;
         if (model.get(GRB.IntAttr.SolCount) > 0) {//si existe una solucion imprimirla
             buildSolution();
             if (showResults) {
@@ -748,10 +748,10 @@ public class SCRDF_MIP {
         } else if (showResults) {
             System.out.println("\nNo solutions found!!");
         }
-        if (Tools.ECHO) {
-            Tools.ECHO = false;
+        if (Tools.echo) {
+            Tools.echo = false;
             runComparations();
-            Tools.ECHO = aux;
+            Tools.echo = aux;
         }
         //save results
         saveResults(resultFile);

@@ -1,5 +1,6 @@
 package domain.monoobjective.implementation.functions;
 
+import domain.EvaluationFunction;
 import domain.monoobjective.implementation.MatrixSolution;
 import domain.monoobjective.implementation.ObjectiveFunction;
 import domain.paths.PathSolution;
@@ -90,5 +91,10 @@ public class LessLatencyAndNodesUsage extends ObjectiveFunction {
             }
             return A < B;
         }
+    }
+
+    @Override
+    public EvaluationFunction<Double, MatrixSolution> copy(ProblemInstance p) {
+        return new LessLatencyAndNodesUsage(p, w1, w2, w3, isMaximization);
     }
 }

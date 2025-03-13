@@ -1,5 +1,6 @@
 package domain.monoobjective.implementation.functions;
 
+import domain.EvaluationFunction;
 import domain.monoobjective.implementation.MatrixSolution;
 import domain.monoobjective.implementation.ObjectiveFunction;
 import domain.paths.PathSolution;
@@ -63,4 +64,8 @@ public class NodesUsage extends ObjectiveFunction {
         return (double) (-numUsedNodes + virtualizedFunctions);
     }
 
+    @Override
+    public EvaluationFunction<Double, MatrixSolution> copy(ProblemInstance p) {
+        return new NodesUsage(p, w1, w2, w3, isMaximization);
+    }
 }

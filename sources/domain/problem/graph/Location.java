@@ -18,12 +18,17 @@ public class Location implements Serializable {
     public double y;
 
     public Location() {
-        x = -1;
-        y = -1;
+        x = Double.NaN;
+        y = Double.NaN;
     }
 
     public Location(double x, double y) {
         this.x = x;
         this.y = y;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("(%.2g, %.2g)", x, y);
     }
 }

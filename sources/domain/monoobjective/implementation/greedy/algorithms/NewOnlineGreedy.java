@@ -29,7 +29,7 @@ public class NewOnlineGreedy extends GreedyAlgorithm {
     private TreeSet<PathSolution> selected;
     private final List<Request> requestsList;
     private RequestComparator requestComparator;
-    private Comparator pathComparator;
+    private Comparator<PathSolution> pathComparator;
     private VirtualLinkComparator virtualLinkComparator;
     private List<Request> requests;
 
@@ -84,23 +84,15 @@ public class NewOnlineGreedy extends GreedyAlgorithm {
                             CU = DU;
                             DU = path.getNodesOfPath().get(0);
                         }
-                        if (vCU.indxNode == -1 && tCUs.contains(CU)) {
+                        if ((vCU.indxNode == -1 && tCUs.contains(CU))
+                                || (vCU.indxNode != -1 && vCU.indxNode != CU.nodePosition)
+                                || (vCU.indxNode == -1 && !ProblemInstance.validateAssignament(CU, vCU))) {
                             continue;
-                        } else if (vCU.indxNode != -1 && vCU.indxNode != CU.nodePosition) {
-                            continue;
-                        } else if (vCU.indxNode == -1) {
-                            if (!ProblemInstance.validateAssignament(CU, vCU)) {
-                                continue;
-                            }
                         }
-                        if (vDU.indxNode == -1 && tDUs.contains(DU)) {
+                        if ((vDU.indxNode == -1 && tDUs.contains(DU))
+                                || (vDU.indxNode != -1 && vDU.indxNode != DU.nodePosition)
+                                || (vDU.indxNode == -1 && !ProblemInstance.validateAssignament(vDU, DU))) {
                             continue;
-                        } else if (vDU.indxNode != -1 && vDU.indxNode != DU.nodePosition) {
-                            continue;
-                        } else if (vDU.indxNode == -1) {
-                            if (!ProblemInstance.validateAssignament(vDU, DU)) {
-                                continue;
-                            }
                         }
                         minLink = null;
                         isValid = true;
@@ -114,21 +106,21 @@ public class NewOnlineGreedy extends GreedyAlgorithm {
                             }
                         }
                         if (isValid) {
-                            int indx = mejorarSplit(splitIndx, minLink, path.getDelay(), vLink.maxDelay);
-                            asignarRecursos(best.data[k], vLink, path, vCU, vDU, CU, DU, indx);
+                            int indx = improveSplit(splitIndx, minLink, path.getDelay(), vLink.maxDelay);
+                            consumeResources(best.data[k], vLink, path, vCU, vDU, CU, DU, indx);
                             selected.add(path);
-                            if (Tools.ECHO) {
+                            if (Tools.echo) {
                                 System.out.println(String.format("[%d] Accepted. %s-%s -> %s", k, instance.splits[indx], request.vLinks[vDU.nodePosition][vCU.nodePosition], path.toString()));
                             }
                             break;
-                        } else if (Tools.ECHO) {
+                        } else if (Tools.echo) {
                             System.out.println(String.format("[%d][NoResources] %s-%s  -> %s", k, instance.splits[splitIndx], request.vLinks[vDU.nodePosition][vCU.nodePosition], path));
                         }
                     }
                 }
                 if (vLink.indxPath == -1) {//no es una solucion valida
                     best.accepted[k] = false;//marcar como no-aceptada
-                    if (Tools.ECHO) {
+                    if (Tools.echo) {
                         System.out.println(String.format("[%d] Rejected.", k));
                     }
                     break;
@@ -139,15 +131,15 @@ public class NewOnlineGreedy extends GreedyAlgorithm {
                 tCUs.clear();
                 tDUs.clear();
             } else {
-                liberarRecursos(request, k);
+                freeResources(request, k);
                 if (!tCUs.isEmpty()) {
-                    if (Tools.ECHO) {
+                    if (Tools.echo) {
                         System.out.println("Warning CUs not empty !!\ntree_CUs clear !");
                     }
                     tCUs.clear();
                 }
                 if (!tDUs.isEmpty()) {
-                    if (Tools.ECHO) {
+                    if (Tools.echo) {
                         System.out.println("Warning DUs not empty !!\ntree_DUs clear !");
                     }
                     tDUs.clear();
@@ -158,13 +150,8 @@ public class NewOnlineGreedy extends GreedyAlgorithm {
             }
         }
         best.setnAccepted(nAccepted);
-        if (nAccepted < 1) {
-            best.isValid = false;
-            return null;
-        } else {
-            best.gn = instance.validate(best);
-            fx.evaluate(best);
-        }
+        best.gn = instance.validate(best);
+        fx.evaluate(best);
         return best;
     }
 
@@ -177,7 +164,7 @@ public class NewOnlineGreedy extends GreedyAlgorithm {
      * @return
      */
     @Override
-    protected int mejorarSplit(int splitIndx, Link minLink, double pathDelay, double maxDelay) {
+    protected int improveSplit(int splitIndx, Link minLink, double pathDelay, double maxDelay) {
         int i = splitIndx + 1;
         while (i < instance.splits.length - 3 && (instance.splits[i].bw + minLink.usedBw) <= minLink.bw && pathDelay <= instance.splits[i].delay && pathDelay <= maxDelay) {
             splitIndx = i;
@@ -191,7 +178,7 @@ public class NewOnlineGreedy extends GreedyAlgorithm {
      * @param request
      * @param k
      */
-    private void liberarRecursos(Request request, int k) {
+    private void freeResources(Request request, int k) {
         VirtualNode vCU;
         for (VirtualNode vDU : request.vDUs) {
             if (vDU.indxNode == -1) {
@@ -199,21 +186,21 @@ public class NewOnlineGreedy extends GreedyAlgorithm {
             }
             instance.nodes[vDU.indxNode].usedPRC -= vDU.prc;
             if (instance.nodes[vDU.indxNode].usedPRC < 0) {
-                if (Tools.ECHO) {
+                if (Tools.echo) {
                     System.out.println(String.format("prc %d < 0", instance.nodes[vDU.indxNode].usedPRC));
                 }
                 instance.nodes[vDU.indxNode].usedPRC = 0;
             }
             instance.nodes[vDU.indxNode].usedANT -= vDU.ant;
             if (instance.nodes[vDU.indxNode].usedANT < 0) {
-                if (Tools.ECHO) {
+                if (Tools.echo) {
                     System.out.println(String.format("ant %d < 0", instance.nodes[vDU.indxNode].usedANT));
                 }
                 instance.nodes[vDU.indxNode].usedANT = 0;
             }
             instance.nodes[vDU.indxNode].usedPRB -= vDU.prb;
             if (instance.nodes[vDU.indxNode].usedPRB < 0) {
-                if (Tools.ECHO) {
+                if (Tools.echo) {
                     System.out.println(String.format("prb %d < 0", instance.nodes[vDU.indxNode].usedPRB));
                 }
                 instance.nodes[vDU.indxNode].usedPRB = 0;
@@ -224,7 +211,7 @@ public class NewOnlineGreedy extends GreedyAlgorithm {
                     for (Link link : instance.mPaths[vCU.indxNode][vDU.indxNode].get(best.data[k][vDU.indx + instance.pathPosition]).getLinks()) {//actualizar ancho de banda para los enlaces
                         link.usedBw -= instance.splits[best.data[k][vDU.indx + instance.splitPosition]].bw;
                         if (link.usedBw < 0) {
-                            if (Tools.ECHO) {
+                            if (Tools.echo) {
                                 System.out.println(String.format("bw %.2f < 0", link.usedBw));
                             }
                             link.usedBw = 0;
@@ -233,21 +220,21 @@ public class NewOnlineGreedy extends GreedyAlgorithm {
                 }
             }
         }
-        liberarRecursos(request);
+        freeResources(request);
     }
 
     /**
      *
      * @param request
      */
-    private void liberarRecursos(Request request) {
+    private void freeResources(Request request) {
         for (VirtualNode vCU : request.vCUs) {
             if (vCU.indxNode == -1) {
                 break;
             }
             instance.nodes[vCU.indxNode].usedPRC -= vCU.prc;
             if (instance.nodes[vCU.indxNode].usedPRC < 0) {
-                if (Tools.ECHO) {
+                if (Tools.echo) {
                     System.out.println(String.format("PRC %d < 0", instance.nodes[vCU.indxNode].usedPRC));
                 }
                 instance.nodes[vCU.indxNode].usedPRC = 0;
@@ -255,7 +242,7 @@ public class NewOnlineGreedy extends GreedyAlgorithm {
         }
     }
 
-    private void asignarRecursos(Integer[] data, VirtualLink vLink, PathSolution pathSolution, VirtualNode vCU, VirtualNode vDU, Node CU, Node DU, int splitIndx) {
+    private void consumeResources(Integer[] data, VirtualLink vLink, PathSolution pathSolution, VirtualNode vCU, VirtualNode vDU, Node CU, Node DU, int splitIndx) {
         if (vCU.indxNode == -1) {//no se ha asignado previamente la CU
             if (!tCUs.add(CU)) {
                 System.out.println("Error while adding to CU tree!!");
@@ -318,17 +305,13 @@ public class NewOnlineGreedy extends GreedyAlgorithm {
                         nodeEnd2 = o2.getNodesOfPath().get(o2.getNodesOfPath().size() - 1);
                 List<PathSolution> l1 = initial.mPaths[nodeInitial1.nodePosition][nodeEnd1.nodePosition],
                         l2 = initial.mPaths[nodeInitial2.nodePosition][nodeEnd2.nodePosition];
-                for (PathSolution pathSolution : l1) {
-                    if (o1.equals(pathSolution)) {
-                        p1 = pathSolution;
-                        break;
-                    }
+                int idx = l1.indexOf(o1);
+                if (idx != -1) {
+                    p1 = l1.get(idx);
                 }
-                for (PathSolution pathSolution : l2) {
-                    if (o2.equals(pathSolution)) {
-                        p2 = pathSolution;
-                        break;
-                    }
+                idx = l2.indexOf(o2);
+                if (idx != -1) {
+                    p2 = l2.get(idx);
                 }
                 if (p1 != null && p2 != null) {
                     int n1 = 0, n2 = 0;

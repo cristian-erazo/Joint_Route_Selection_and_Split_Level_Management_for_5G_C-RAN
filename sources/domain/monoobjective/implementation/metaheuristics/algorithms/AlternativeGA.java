@@ -1,5 +1,6 @@
 package domain.monoobjective.implementation.metaheuristics.algorithms;
 
+import domain.util.threads.RunObjective;
 import domain.EvaluationFunction;
 import domain.monoobjective.implementation.MatrixSolution;
 import domain.monoobjective.implementation.metaheuristics.Metaheuristic;
@@ -9,7 +10,6 @@ import domain.operators.Mutation;
 import domain.operators.Reparator;
 import domain.problem.ProblemInstance;
 import domain.util.Tools;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
@@ -19,19 +19,16 @@ import java.util.Random;
  */
 public class AlternativeGA extends Metaheuristic<MatrixSolution> {
 
-    protected long it;
-    protected double avgFx;
     protected final int popSize;
     protected Mutation<MatrixSolution> mutation;
     protected Crossover<MatrixSolution> crossover;
-    protected Reparator<MatrixSolution> reparator;
     protected Initialization<MatrixSolution> initalization;
     //protected boolean doRepair;
     //protected boolean atLeastOne;
     //protected List<MatrixSolution> listFeasibleSolutions;
 
     public AlternativeGA(ProblemInstance instance, EvaluationFunction<Double, MatrixSolution> fx, Mutation<MatrixSolution> mutation, Crossover<MatrixSolution> crossover, Initialization<MatrixSolution> initialization, Reparator<MatrixSolution> reparator, Random rand, int numIterations, int popSize) {
-        super(instance, fx, rand, numIterations);
+        super(instance, fx, rand, numIterations, Tools.numThreads);
         this.popSize = popSize;
         this.mutation = mutation;
         this.crossover = crossover;
@@ -51,7 +48,7 @@ public class AlternativeGA extends Metaheuristic<MatrixSolution> {
         crossover.setNumberOfChilds(nChilds);
         List<MatrixSolution> population = initalization.run();// random generation
         evaluatePopulation(population);
-        if (Tools.ECHO) {
+        if (Tools.echo) {
             System.out.println(String.format("[%d] AvgFx: %f Best: %s", it, avgFx, best.toString()));
         }
         while (it < numIterations) {
@@ -65,9 +62,13 @@ public class AlternativeGA extends Metaheuristic<MatrixSolution> {
                     population.add(h);
                 }
             }
-            evaluatePopulation(population);
+            if (threads == null) {
+                evaluatePopulation(population);
+            } else {
+                concurrentEvaluatePopulation(population);
+            }
             population = replaceRandomSolution(population);// replace one solution using the best found (so far)
-            if (Tools.ECHO) {
+            if (Tools.echo) {
                 System.out.print(String.format("[%d] AvgFx: %f Best: %s", it, avgFx, best.toString()));
                 System.out.println();
             }
@@ -75,16 +76,23 @@ public class AlternativeGA extends Metaheuristic<MatrixSolution> {
         best.setObjective(-1.);
         best.gn = instance.validate(best);
         fx.evaluate(best);
-        if (Tools.ECHO) {
+        if (Tools.echo) {
             System.out.println(String.format("[%d] Best: %s", best.it, best));
         }
         return best;
     }
 
+    @Override
+    protected void getThreadResults(RunObjective thread) {
+        if (thread.getBestSolution() != null && (best == null || fx.isBetter(thread.getBestSolution(), best))) {
+            //si solucion actual es mejor, entonces actualizar la mejor solucion
+            best = (MatrixSolution) thread.getBestSolution();
+        }
+    }
+
     protected double evaluatePopulation(List<MatrixSolution> population) {
         avgFx = 0;
-        for (int i = 0; i < population.size(); i++) {
-            MatrixSolution solution = population.get(i);
+        for(MatrixSolution solution : population) {
             if (solution.getObjective() == -1) {
                 solution.it = it;
                 solution.gn = instance.validate(solution);//se evaluan las restricciones del problema
@@ -123,8 +131,7 @@ public class AlternativeGA extends Metaheuristic<MatrixSolution> {
 
     private List<MatrixSolution> replaceRandomSolution(List<MatrixSolution> population) {
         if (best != null) {
-            int i = rand.nextInt(population.size());
-            population.set(i, (MatrixSolution) best.copy());
+            population.set(rand.nextInt(population.size()), (MatrixSolution) best.copy());
         }
         return population;
     }

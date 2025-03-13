@@ -46,7 +46,7 @@ public class VirtualNode extends Node {
     }
 
     public VirtualNode copy() {
-        VirtualNode copy = new VirtualNode(indxNode, indx, nodeType, prc, location, nears);
+        VirtualNode copy = new VirtualNode(indxNode, indx, nodeType, nodePosition, location, nears);
         copy.ant = ant;
         copy.prb = prb;
         copy.prc = prc;

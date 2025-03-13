@@ -1,5 +1,6 @@
 package domain;
 
+import domain.problem.ProblemInstance;
 import java.io.Serializable;
 import java.util.List;
 
@@ -67,4 +68,6 @@ public interface EvaluationFunction<E, Solution> extends Serializable {
      * <i>b</i>. <i>false</i> otherwise.
      */
     public boolean isBetter(Solution a, Solution b);
+
+    public EvaluationFunction<E, Solution> copy(ProblemInstance p);
 }

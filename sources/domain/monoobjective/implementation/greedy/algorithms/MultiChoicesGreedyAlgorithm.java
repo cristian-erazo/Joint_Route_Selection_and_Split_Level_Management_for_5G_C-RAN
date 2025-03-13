@@ -63,11 +63,11 @@ public class MultiChoicesGreedyAlgorithm extends GreedyAlgorithm {
                 for (Node CU : instance.CUs) {
                     if (ProblemInstance.validateAssignament(CU, vCU) && tCUs.add(CU)) {
                         asignarRecursos(vCU, CU, k);
-                        if (Tools.ECHO) {
+                        if (Tools.echo) {
                             System.out.println(String.format("vCU %s assigned to %s", vCU, CU));
                         }
                         break;
-                    } else if (Tools.ECHO) {
+                    } else if (Tools.echo) {
                         System.out.println(String.format("[NoResources] %s -/- %s", vCU, CU));
                     }
                 }
@@ -115,9 +115,9 @@ public class MultiChoicesGreedyAlgorithm extends GreedyAlgorithm {
                                                 }
                                             }
                                             if (isValid) {//es una asignacion valida, tratar de mejorar el split y asignar los recursos ...
-                                                asignarRecursos(vDU, DU, k, instance.mPaths[DU.nodePosition][request.vNodes[vcu].indxNode].indexOf(path), mejorarSplit(splitIndx, minLink, path.getDelay(), request.vLinks[vDU.nodePosition][vcu].maxDelay), path);
+                                                asignarRecursos(vDU, DU, k, instance.mPaths[DU.nodePosition][request.vNodes[vcu].indxNode].indexOf(path), improveSplit(splitIndx, minLink, path.getDelay(), request.vLinks[vDU.nodePosition][vcu].maxDelay), path);
                                                 request.vLinks[vDU.nodePosition][vcu].indxPath = best.data[k][vDU.indx + 1];
-                                                if (Tools.ECHO) {
+                                                if (Tools.echo) {
                                                     System.out.println(String.format("vDU %s assigned to %s", vDU, DU));
                                                 }
                                                 if (!tDUs.add(DU)) {
@@ -125,25 +125,25 @@ public class MultiChoicesGreedyAlgorithm extends GreedyAlgorithm {
                                                 }
                                                 break;//se hizo la asignacion, dejar de buscar rutas o splits
                                             }
-                                        } else if (Tools.ECHO) {
+                                        } else if (Tools.echo) {
                                             System.out.println(String.format("[%d][Invalid] s%s | %s -/- %s", vDU.nodePosition, instance.splits[splitIndx], request.vLinks[vDU.nodePosition][vcu], path));
                                         }
                                         if (request.vLinks[vDU.nodePosition][vcu].indxPath != -1) {
                                             break;
                                         }
                                     }
-                                    if (Tools.ECHO && request.vLinks[vDU.nodePosition][vcu].indxPath == -1) {
+                                    if (Tools.echo && request.vLinks[vDU.nodePosition][vcu].indxPath == -1) {
                                         System.out.println(String.format("[%d][NoPath] unable to assign a valid path", vDU.nodePosition));
                                     }
                                     paths.clear();
-                                } else if (Tools.ECHO) {
+                                } else if (Tools.echo) {
                                     System.out.println(String.format("[%d][Invalid] %s -/- %s", vDU.nodePosition, vDU, DU));
                                 }
                             }
                             if (vDU.indxNode != -1) {
                                 break;//se hizo la asignacion .. pasar a la siguiente DU virtual
                             }
-                        } else if (Tools.ECHO) {
+                        } else if (Tools.echo) {
                             System.out.println(String.format("[%d] Previously used DU: %s", vDU.nodePosition, DU));
                         }
                     }
@@ -155,12 +155,12 @@ public class MultiChoicesGreedyAlgorithm extends GreedyAlgorithm {
                 tDUs.clear();
                 if (best.accepted[k]) {//solucion atendida?
                     nAccepted++;
-                    if (Tools.ECHO) {
+                    if (Tools.echo) {
                         System.out.println("[" + k + "] Accepted.");
                     }
                 } else {//no fue atendida, liberar recursos..
                     liberarRecursos(request, k);
-                    if (Tools.ECHO) {
+                    if (Tools.echo) {
                         System.out.println("[" + k + "] Rejected.");
                     }
                     if (Tools.fitAll) {
@@ -193,7 +193,7 @@ public class MultiChoicesGreedyAlgorithm extends GreedyAlgorithm {
             }
             instance.nodes[vDU.indxNode].usedPRC -= vDU.prc;
             if (instance.nodes[vDU.indxNode].usedPRC < 0) {
-                if (Tools.ECHO) {
+                if (Tools.echo) {
                     System.out.println("ERROR AL LIBERAR RECURSOS");
                     System.out.println(String.format("%d < 0", instance.nodes[vDU.indxNode].usedPRC));
                 }
@@ -201,7 +201,7 @@ public class MultiChoicesGreedyAlgorithm extends GreedyAlgorithm {
             }
             instance.nodes[vDU.indxNode].usedANT -= vDU.ant;
             if (instance.nodes[vDU.indxNode].usedANT < 0) {
-                if (Tools.ECHO) {
+                if (Tools.echo) {
                     System.out.println("ERROR AL LIBERAR RECURSOS");
                     System.out.println(String.format("%d < 0", instance.nodes[vDU.indxNode].usedANT));
                 }
@@ -209,7 +209,7 @@ public class MultiChoicesGreedyAlgorithm extends GreedyAlgorithm {
             }
             instance.nodes[vDU.indxNode].usedPRB -= vDU.prb;
             if (instance.nodes[vDU.indxNode].usedPRB < 0) {
-                if (Tools.ECHO) {
+                if (Tools.echo) {
                     System.out.println("ERROR AL LIBERAR RECURSOS");
                     System.out.println(String.format("%d < 0", instance.nodes[vDU.indxNode].usedPRB));
                 }
@@ -221,7 +221,7 @@ public class MultiChoicesGreedyAlgorithm extends GreedyAlgorithm {
                     for (Link link : instance.mPaths[vCU.indxNode][vDU.indxNode].get(best.data[k][vDU.indx + instance.pathPosition]).getLinks()) {//actualizar ancho de banda para los enlaces
                         link.usedBw -= instance.splits[best.data[k][vDU.indx + instance.splitPosition]].bw;
                         if (link.usedBw < 0) {
-                            if (Tools.ECHO) {
+                            if (Tools.echo) {
                                 System.out.println("ERROR AL LIBERAR RECURSOS");
                                 System.out.println(String.format("%.2f < 0", link.usedBw));
                             }
@@ -245,7 +245,7 @@ public class MultiChoicesGreedyAlgorithm extends GreedyAlgorithm {
             }
             instance.nodes[vCU.indxNode].usedPRC -= vCU.prc;
             if (instance.nodes[vCU.indxNode].usedPRC < 0) {
-                if (Tools.ECHO) {
+                if (Tools.echo) {
                     System.out.println("ERROR AL LIBERAR RECURSOS");
                     System.out.println(String.format("%d < 0", instance.nodes[vCU.indxNode].usedPRC));
                 }
@@ -264,7 +264,7 @@ public class MultiChoicesGreedyAlgorithm extends GreedyAlgorithm {
         virtualNode.indxNode = physicalNode.nodePosition;//asignacion de indice del nodo fisico
         physicalNode.usedPRC += virtualNode.prc;//aumento del ancho de banda usado
         if (physicalNode.usedPRC > physicalNode.prc) {
-            if (Tools.ECHO) {
+            if (Tools.echo) {
                 System.out.println("ERROR AL ASIGNAR RECURSOS");
                 System.out.println(String.format("%d > %d", physicalNode.usedPRC, physicalNode.prc));
             }
@@ -286,7 +286,7 @@ public class MultiChoicesGreedyAlgorithm extends GreedyAlgorithm {
         asignarRecursos(vDU, DU, k);
         DU.usedANT += vDU.ant;
         if (DU.usedANT > DU.ant) {
-            if (Tools.ECHO) {
+            if (Tools.echo) {
                 System.out.println("ERROR AL ASIGNAR RECURSOS");
                 System.out.println(String.format("%d > %d", DU.usedANT, DU.ant));
             }
@@ -294,7 +294,7 @@ public class MultiChoicesGreedyAlgorithm extends GreedyAlgorithm {
         }
         DU.usedPRB += vDU.prb;
         if (DU.usedPRB > DU.prb) {
-            if (Tools.ECHO) {
+            if (Tools.echo) {
                 System.out.println("ERROR AL ASIGNAR RECURSOS");
                 System.out.println(String.format("%d > %d", DU.usedPRB, DU.prb));
             }
@@ -305,7 +305,7 @@ public class MultiChoicesGreedyAlgorithm extends GreedyAlgorithm {
         for (Link link : pathSolution.getLinks()) {//actualizar ancho de banda usado para cada enlace de la ruta
             link.usedBw += instance.splits[splitIndx].bw;
             if (link.usedBw > link.bw) {
-                if (Tools.ECHO) {
+                if (Tools.echo) {
                     System.out.println("ERROR AL ASIGNAR RECURSOS");
                     System.out.println(String.format("%.2f > %.2f", link.usedBw, link.bw));
                 }

@@ -14,6 +14,7 @@ import domain.problem.virtual.Request;
 import domain.problem.virtual.VirtualLink;
 import domain.problem.virtual.VirtualNode;
 import domain.util.Tools;
+import domain.util.threads.RunObjective;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -71,8 +72,7 @@ public class IterativeSearch extends Metaheuristic<MatrixSolution> {
             numIterations /= 2;
             doProcedure2 = false;
         }
-        evaluateFitnessFunction(currentSolution);
-        //temperature *= evaluateFitnessFunction(currentSolution);
+        temperature *= evaluateFitnessFunction(currentSolution);
         double avg;
         for (; it < numIterations; it++) {
             avg = 0;
@@ -81,7 +81,7 @@ public class IterativeSearch extends Metaheuristic<MatrixSolution> {
                 pop[i] = allocateNodesAndPaths(modifySolution(currentSolution));
                 //evaluate fitness function
                 avg += evaluateFitnessFunction(pop[i]);
-                System.out.println(currentSolution);
+                System.out.println(String.format("%d-%d %s", it, i, pop[i]));
             }
             //update parameters
             temperature *= coolingRate;
@@ -89,11 +89,11 @@ public class IterativeSearch extends Metaheuristic<MatrixSolution> {
             for (int i = 0; i < populationSize; i++) {
                 currentSolution = updateSolution(pop[i], currentSolution, temperature);
             }
-            avg /= populationSize;
-            /*if (Tools.ECHO) {
+            if (Tools.echo) {
+                avg /= populationSize;
                 System.out.print(String.format("[%d] AvgFx: %f Best: %s", it, avg, best.toString()));
                 System.out.println();
-            }*/
+            }
         }
         if (!doSecuencial) {
             temperature = initT;// * currentSolution.getObjective();
@@ -106,25 +106,25 @@ public class IterativeSearch extends Metaheuristic<MatrixSolution> {
                     pop[i] = allocateNodesAndPaths(modifySolution(currentSolution));
                     //evaluate fitness function
                     avg += evaluateFitnessFunction(pop[i]);
-                    System.out.println(currentSolution);
+                    System.out.println(String.format("%d-%d %s", it, i, pop[i]));
                 }
                 //Update parameters
                 temperature *= coolingRate;
                 //update solution
-                /*for (int i = 0; i < populationSize; i++) {
+                for (int i = 0; i < populationSize; i++) {
                     currentSolution = updateSolution(pop[i], currentSolution, temperature);
-                }*/
-                avg /= populationSize;
-                /*if (Tools.ECHO) {
+                }
+                if (Tools.echo) {
+                    avg /= populationSize;
                     System.out.print(String.format("[%d] AvgFx: %f Best: %s", it, avg, best.toString()));
                     System.out.println();
-                }*/
+                }
             }
         }
         best.setObjective(-1.);
         best.gn = instance.validate(best);
         fx.evaluate(best);
-        if (Tools.ECHO) {
+        if (Tools.echo) {
             System.out.println(String.format("[%d] Best: %s", best.it, best));
         }
         //return best solution found
@@ -173,16 +173,12 @@ public class IterativeSearch extends Metaheuristic<MatrixSolution> {
                     vDU.indxNode = -1;
                     Node bestDU = null;
                     for (Node DU : dus) {
-                        if (ProblemInstance.validateAssignament(vDU, DU) && !tDUs.contains(DU)) {
-                            if (bestDU == null) {
-                                bestDU = DU;
-                            } else if (DU.usedPRC < bestDU.usedPRC
-                                    || DU.usedPRB < bestDU.usedPRB
-                                    || DU.usedANT < bestDU.usedANT) {
-                                bestDU = DU;
-                                break;
-                            }
-                        } else if (Tools.ECHO) {
+                        if (ProblemInstance.validateAssignament(vDU, DU) && !tDUs.contains(DU)
+                                && (bestDU == null || DU.usedPRC < bestDU.usedPRC
+                                || DU.usedPRB < bestDU.usedPRB
+                                || DU.usedANT < bestDU.usedANT)) {
+                            bestDU = DU;
+                        } else if (Tools.echo) {
                             System.out.println(String.format("[NoResources] %s -/- %s", vDU, DU));
                         }
                     }
@@ -203,7 +199,7 @@ public class IterativeSearch extends Metaheuristic<MatrixSolution> {
                         if (g != 0) {
                             System.out.println("DU WARNING: " + g);
                         }
-                        if (Tools.ECHO) {
+                        if (Tools.echo) {
                             System.out.println(String.format("vCU %s assigned to %s", vDU, bestDU));
                         }
                     }
@@ -232,13 +228,9 @@ public class IterativeSearch extends Metaheuristic<MatrixSolution> {
                                 List<PathSolution> routes = instance.mPaths[request.vNodes[vdu].indxNode][cu.nodePosition];
                                 if (request.vNodes[vdu].indxNode != -1 && routes != null && !routes.isEmpty()) {
                                     for (PathSolution route : routes) {
-                                        if (ProblemInstance.validateAssignament(route, instance.splits[1], request.vLinks[vdu][vCU.nodePosition])) {
-                                            if (bestPath == null) {
-                                                bestPath = route;
-                                            } else if (route.getDelay() < bestPath.getDelay()) {
-                                                bestPath = route;
-                                                break;
-                                            }
+                                        if (ProblemInstance.validateAssignament(route, instance.splits[1], request.vLinks[vdu][vCU.nodePosition])
+                                                && (bestPath == null || route.getDelay() < bestPath.getDelay())) {
+                                            bestPath = route;
                                         }
                                     }
                                 }
@@ -413,5 +405,10 @@ public class IterativeSearch extends Metaheuristic<MatrixSolution> {
             }
         }
         return sol;
+    }
+
+    @Override
+    protected void getThreadResults(RunObjective thread) {
+        // no es necesaria su implementacion
     }
 }

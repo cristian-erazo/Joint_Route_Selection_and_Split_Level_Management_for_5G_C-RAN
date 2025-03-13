@@ -95,4 +95,7 @@ public abstract class MultiObjectiveFunction implements EvaluationFunction<Doubl
     public abstract Double eval(MultiObjectiveMatrixSolution s, int objID);
 
     protected abstract Double eval(MultiObjectiveMatrixSolution s);
+
+    @Override
+    public abstract EvaluationFunction<Double[], MultiObjectiveMatrixSolution> copy(ProblemInstance p);
 }

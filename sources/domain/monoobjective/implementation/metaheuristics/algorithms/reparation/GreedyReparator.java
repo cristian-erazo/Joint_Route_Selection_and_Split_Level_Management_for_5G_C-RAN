@@ -30,6 +30,13 @@ public class GreedyReparator<T extends MatrixSolution> implements Reparator<T> {
     protected final int[] idx;
     protected final boolean[] True;
     protected ProblemInstance instance;
+    protected List<PathSolution> paths;
+    protected NodeComparator distCmp;
+    protected NodeComparator resCmp;
+    protected List<Node> CUs;
+    protected List<Node> DUs;
+    protected PathComparator pthCmp;
+    protected TreeSet<Node> visitedCUs;
 
     public GreedyReparator(Random r, ProblemInstance instance) {
         this.r = r;
@@ -40,16 +47,18 @@ public class GreedyReparator<T extends MatrixSolution> implements Reparator<T> {
             idx[i] = i;
         }
         Arrays.fill(True, true);
+        paths = (instance.isFullyRepresentated() ? null : new ArrayList<>(instance.mPaths[0][0]));
+        distCmp = new NodeDistanceComparator();
+        resCmp = new NodeFittestResourcesComparator();
+        CUs = new ArrayList<>(instance.CUs);
+        DUs = new ArrayList<>(instance.DUs);
+        pthCmp = new PathComparator();
+        visitedCUs = new TreeSet<>();
     }
 
     @Override
     public T run() {
         if (s != null) {
-            List<PathSolution> paths = (instance.isFullyRepresentated() ? null : new ArrayList<>(instance.mPaths[0][0]));
-            NodeComparator distCmp = new NodeDistanceComparator(), resCmp = new NodeFittestResourcesComparator();
-            List<Node> CUs = new ArrayList<>(instance.CUs), DUs = new ArrayList<>(instance.DUs);
-            PathComparator pthCmp = new PathComparator();
-            TreeSet<Node> visitedCUs = new TreeSet<>();
             VirtualNode vCU, vDU;
             VirtualLink vLink;
             boolean assigned;
@@ -57,6 +66,7 @@ public class GreedyReparator<T extends MatrixSolution> implements Reparator<T> {
             shuffle(idx);
             instance.cleanResources();
             s.isValid = true;
+            visitedCUs.clear();
             for (x = 0; x < idx.length; x++) {
                 q = idx[x];
                 vCU = vDU = null;
@@ -245,5 +255,10 @@ public class GreedyReparator<T extends MatrixSolution> implements Reparator<T> {
             }
         }
         return null;
+    }
+
+    @Override
+    public Reparator<T> copy(ProblemInstance p) {
+        return new GreedyReparator<>(new Random(r.nextLong()), p);
     }
 }

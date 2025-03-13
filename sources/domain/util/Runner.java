@@ -1,6 +1,7 @@
 package domain.util;
 
 import domain.EvaluationFunction;
+import domain.Solution;
 import domain.monoobjective.MonoObjectiveSolution;
 import domain.monoobjective.implementation.*;
 import domain.monoobjective.implementation.exhaustive.ExhaustiveSearch;
@@ -29,7 +30,6 @@ import domain.problem.graph.*;
 import domain.problem.virtual.*;
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -42,7 +42,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 
@@ -52,10 +51,15 @@ import java.util.Random;
  */
 public class Runner implements Serializable {
 
+    private static final String OUT_FORMAT = "%s.out";
+    private static final String TIME_FORMAT = "%s_time.out";
+    private static final String GREEDY_TIME_FORMAT = "[%s][%s][%s] Seed: %d #Iterations: %d Elapsed Time: %f ms EFO: %d\n";
+    private static final String POPULATION_TIME_FORMAT = "[%s][%s][%s] Seed: %d #Iterations: %d Elapsed Time: %f ms EFO: %d #NotValid: %d\n";
+
     public String requestFolder, graphFile, pathsFile, outFile;
-    private final Flow[] functionalSplits = {
+    private final Flow[] splitsReq = {
         /**
-         * PDCP-RRC
+         * RRC-PDCP
          */
         new Flow(0, 151, 30000, 1, 1, 5),
         /**
@@ -93,17 +97,15 @@ public class Runner implements Serializable {
         /**
          * PHY-RF
          */
-        new Flow(9, 2457.6, 250, 1, 6, 1)};
+        new Flow(9, 2457.6, 250, 1, 6, 1)
+    };
 
     private int algId, popSize, numIterations;
     private ProblemInstance problemInstance;
     private double w1, w2, w3, g1, g2, g3;
-    private static Runner instance;
-    private boolean isFully;
+    private static Runner instance = null;
     private Tools utils;
     private File paths;
-    private List<Request> requestList;
-    private List<String> requestName;
     private LoCAndUoLAndAcc function;
     private StringBuilder sbMetrics;
     private StringBuilder sbConfig;
@@ -121,9 +123,8 @@ public class Runner implements Serializable {
         requestFolder = null;
         graphFile = null;
         pathsFile = null;
-        instance = null;
         outFile = null;
-        isFully = true;
+        Tools.isFully = true;
         paths = null;
         w1 = 0.7;
         w2 = 0.2;
@@ -161,7 +162,7 @@ public class Runner implements Serializable {
 
     public ProblemInstance getProblemInstance() {
         if (problemInstance == null) {
-            problemInstance = new ProblemInstance(utils.getNodes(), utils.getLinks(), functionalSplits, utils.getPaths(), utils.getRequests(), utils.getCUs(), utils.getDUs(), utils.getE(), utils.getMaxVirtualDUs(), utils.getMaxVirtualCUs(), isFully ? 3 : 2);
+            problemInstance = new ProblemInstance(utils.getNodes(), utils.getLinks(), splitsReq, utils.getPaths(), utils.getRequests(), utils.getCUs(), utils.getDUs(), utils.getE(), utils.getMaxVirtualDUs(), utils.getMaxVirtualCUs(), Tools.isFully ? 3 : 2);
             utils.loadBoundaries(problemInstance);
         }
         return problemInstance;
@@ -222,7 +223,7 @@ public class Runner implements Serializable {
                             outFile = data[1];
                             break;
                         case "K":
-                            Tools.K = Integer.parseInt(data[1]);
+                            Tools.k = Integer.parseInt(data[1]);
                             break;
                     }
                 }
@@ -280,29 +281,29 @@ public class Runner implements Serializable {
                 sbGenerations.append((char) b);
             }
         }));
-        Tools.ECHO = false;
+        Tools.echo = false;
     }
 
     private void runPathAlgorithm() {
         paths = new File(pathsFile);
         if (!paths.exists()) {
-            if (utils.loadGraph(new File(graphFile), g1, g2, g3)) {
+            if (utils.loadGraph(new File(graphFile), g1, g2, g3, false)) {
                 SearchPath pathsAlgorithm;
-                if (Tools.K > 0) {//k-paths
-                    pathsAlgorithm = new DijkstraKPaths(utils.getNodes(), utils.getLinks(), isFully, Tools.K);
+                if (Tools.k > 0) {//k-paths
+                    pathsAlgorithm = new DijkstraKPaths(utils.getNodes(), utils.getLinks(), Tools.isFully, Tools.k);
                 } else {//exhaustive search
-                    pathsAlgorithm = new ExhaustiveSearchPath(utils.getNodes(), utils.getLinks(), isFully);
+                    pathsAlgorithm = new ExhaustiveSearchPath(utils.getNodes(), utils.getLinks(), Tools.isFully);
                 }
                 utils.setPaths(pathsAlgorithm.run());
                 utils.setnPaths(pathsAlgorithm.getnPaths());
-                if (!utils.savePaths(paths, isFully)) {
-                    System.out.println(String.format("Warning: paths not saved !!."));
+                if (!utils.savePaths(paths, Tools.isFully)) {
+                    System.out.println("Warning: paths not saved !!.");
                     if (utils.getnPaths() > 0) {
                         System.out.println(Arrays.toString(utils.getPaths()));
                     } else {
                         System.out.println("There are no paths between DUs and CUs.");
                     }
-                } else if (Tools.ECHO) {
+                } else if (Tools.echo) {
                     System.out.println(String.format("Path file: [%s] generated. Num of paths: %d", pathsFile, utils.getnPaths()));
                 }
             } else {
@@ -312,7 +313,7 @@ public class Runner implements Serializable {
     }
 
     private boolean loadInstance() throws IllegalArgumentException {
-        if (utils.loadGraph(new File(graphFile), g1, g2, g3)) {
+        if (utils.loadGraph(new File(graphFile), g1, g2, g3, false)) {
             if (utils.loadRequests(new File(requestFolder))) {
                 return loadPaths();
             } else {
@@ -330,27 +331,27 @@ public class Runner implements Serializable {
             if (!paths.isFile()) {
                 throw new IllegalArgumentException("The parameter paths_file must be a file not a folder.");
             }
-            if (!utils.loadPaths(paths, isFully)) {
+            if (!utils.loadPaths(paths, Tools.isFully)) {
                 System.out.println(String.format("Error: paths can't be loaded from %s", pathsFile));
                 return false;
             } else {
-                if (Tools.ECHO) {
+                if (Tools.echo) {
                     System.out.println(String.format("Path file: [%s] loaded. Num of paths: %d", pathsFile, utils.getnPaths()));
                 }
             }
         } else {//generate paths and save the file ...
             SearchPath pathsAlgorithm;
-            if (Tools.K > 0) {//k-paths
-                pathsAlgorithm = new DijkstraKPaths(utils.getNodes(), utils.getLinks(), isFully, Tools.K);
+            if (Tools.k > 0) {//k-paths
+                pathsAlgorithm = new DijkstraKPaths(utils.getNodes(), utils.getLinks(), Tools.isFully, Tools.k);
             } else {//exhaustive search
-                pathsAlgorithm = new ExhaustiveSearchPath(utils.getNodes(), utils.getLinks(), isFully);
+                pathsAlgorithm = new ExhaustiveSearchPath(utils.getNodes(), utils.getLinks(), Tools.isFully);
             }
             utils.setPaths(pathsAlgorithm.run());
             utils.setnPaths(pathsAlgorithm.getnPaths());
-            if (!utils.savePaths(paths, isFully)) {
+            if (!utils.savePaths(paths, Tools.isFully)) {
                 System.out.println(String.format("Warning: paths not saved !!."));
                 return false;
-            } else if (Tools.ECHO) {
+            } else if (Tools.echo) {
                 System.out.println(String.format("Path file: [%s] generated. Num of paths: %d", pathsFile, utils.getnPaths()));
             }
         }
@@ -361,13 +362,13 @@ public class Runner implements Serializable {
         int i = 1;
         while (i < args.length) {
             if ("-usepaths".compareToIgnoreCase(args[i]) == 0) {
-                isFully = false;
+                Tools.isFully = false;
             } else if ("-fitAll".compareToIgnoreCase(args[i]) == 0) {
                 Tools.fitAll = true;
             } else if ("-seed".compareToIgnoreCase(args[i]) == 0) {
                 utils.setSeed(Integer.parseInt(args[++i]));
             } else if ("-k".compareToIgnoreCase(args[i]) == 0) {
-                Tools.K = Integer.parseInt(args[++i]);
+                Tools.k = Integer.parseInt(args[++i]);
             } else if ("-paths".compareToIgnoreCase(args[i]) == 0) {
                 pathsFile = args[++i];
             } else if ("-out".compareToIgnoreCase(args[i]) == 0) {
@@ -379,7 +380,7 @@ public class Runner implements Serializable {
             } else if ("-w2".compareToIgnoreCase(args[i]) == 0) {
                 w2 = Double.parseDouble(args[++i]);
             } else if ("-verbose".compareToIgnoreCase(args[i]) == 0) {
-                Tools.ECHO = true;
+                Tools.echo = true;
             } else if ("-temp".compareToIgnoreCase(args[i]) == 0) {
                 Tools.out = System.out;
             } else if ("-mut".compareToIgnoreCase(args[i]) == 0) {
@@ -395,9 +396,9 @@ public class Runner implements Serializable {
             } else if ("-no-sol".compareToIgnoreCase(args[i]) == 0) {
                 Tools.noSolution = true;
             } else if ("-FxId".compareToIgnoreCase(args[i]) == 0) {
-                Tools.FxId = Integer.parseInt(args[++i]);
+                Tools.fxId = Integer.parseInt(args[++i]);
             } else if ("-constant".compareToIgnoreCase(args[i]) == 0) {
-                Tools.C = Double.parseDouble(args[++i]);
+                Tools.c = Double.parseDouble(args[++i]);
             } else if ("-fronts".compareToIgnoreCase(args[i]) == 0) {
                 Tools.printFront = true;
             } else if ("-CUcomparator".compareToIgnoreCase(args[i]) == 0) {
@@ -407,7 +408,7 @@ public class Runner implements Serializable {
         }
         w3 = 1.0 - w1 - w2;
         algId = Integer.parseInt(args[2]);
-        if (Tools.FxId > 4) {
+        if (Tools.fxId > 4) {
             algId = 5;
         }
         switch (algId) {
@@ -416,110 +417,107 @@ public class Runner implements Serializable {
                 numIterations = Integer.parseInt(args[3]);
                 popSize = Integer.parseInt(args[4]);
                 break;
+            case 9:
             case 3:
-                isFully = false;
+                Tools.isFully = false;
                 break;
             case 2:
-                isFully = true;
+                Tools.isFully = true;
         }
     }
 
-    private boolean loadParameters(String filePath) throws FileNotFoundException, IOException, NumberFormatException {
+    private boolean loadParameters(String filePath) throws NumberFormatException, IOException {
         File f = new File(filePath);
         if (f.exists()) {
-            BufferedReader br = new BufferedReader(new FileReader(f));
-            String[] data;
-            String line;
-            while ((line = br.readLine()) != null) {
-                if (!line.isEmpty() && !line.startsWith("#")) {
-                    data = line.split(" ");
-                    switch (data[0]) {
-                        case "seed":
-                            utils.setSeed(Integer.parseInt(data[1]));
-                            break;
-                        case "representation":
-                            isFully = "1".equals(data[1]);
-                            break;
-                        case "algorithm":
-                            algId = Integer.parseInt(data[1]);
-                            break;
-                        case "iterations":
-                            numIterations = Integer.parseInt(data[1]);
-                            break;
-                        case "mutation":
-                            Tools.mut = Double.parseDouble(data[1]);
-                            break;
-                        case "crossover":
-                            Tools.cross = Double.parseDouble(data[1]);
-                            break;
-                        case "ranking":
-                            Tools.rank = Double.parseDouble(data[1]);
-                            break;
-                        case "initialization":
-                            Tools.init = Integer.parseInt(data[1]);
-                            break;
-                        case "crossing":
-                            Tools.crxId = Integer.parseInt(data[1]);
-                            break;
-                        case "population":
-                            popSize = Integer.parseInt(data[1]);
-                            break;
-                        case "verbose":
-                            Tools.ECHO = true;
-                            break;
-                        case "no-time":
-                            Tools.noTime = true;
-                            break;
-                        case "no-sol":
-                            Tools.noSolution = true;
-                            break;
-                        case "fronts":
-                            Tools.printFront = true;
-                            break;
-                        case "trace":
-                            Tools.out = System.out;
-                            break;
-                        case "temperature":
-                            Tools.T = Double.parseDouble(data[1]);
-                            break;
-                        case "alpha":
-                            Tools.alpha = Double.parseDouble(data[1]);
-                            break;
-                        case "objective":
-                            Tools.FxId = Integer.parseInt(data[1]);
-                            break;
-                        case "constant":
-                            Tools.C = Double.parseDouble(data[1]);
-                            break;
-                        case "reparator":
-                            Tools.repId = Integer.parseInt(data[1]);
-                            break;
-                        case "CUcomparator":
-                            Tools.cuNodeComparatorId = Integer.parseInt(data[1]);
-                            break;
-                        default:
-                            System.out.println(String.format("No option avaliable for: %s", data[0]));
-                            break;
+            try (BufferedReader br = new BufferedReader(new FileReader(f))) {
+                String[] data;
+                String line;
+                while ((line = br.readLine()) != null) {
+                    if (!line.isEmpty() && !line.startsWith("#")) {
+                        data = line.split(" ");
+                        switch (data[0]) {
+                            case "seed":
+                                utils.setSeed(Integer.parseInt(data[1]));
+                                break;
+                            case "representation":
+                                Tools.isFully = "1".equals(data[1]);
+                                break;
+                            case "algorithm":
+                                algId = Integer.parseInt(data[1]);
+                                break;
+                            case "iterations":
+                                numIterations = Integer.parseInt(data[1]);
+                                break;
+                            case "mutation":
+                                Tools.mut = Double.parseDouble(data[1]);
+                                break;
+                            case "crossover":
+                                Tools.cross = Double.parseDouble(data[1]);
+                                break;
+                            case "ranking":
+                                Tools.rank = Double.parseDouble(data[1]);
+                                break;
+                            case "initialization":
+                                Tools.init = Integer.parseInt(data[1]);
+                                break;
+                            case "crossing":
+                                Tools.crxId = Integer.parseInt(data[1]);
+                                break;
+                            case "population":
+                                popSize = Integer.parseInt(data[1]);
+                                break;
+                            case "verbose":
+                                Tools.echo = true;
+                                break;
+                            case "no-time":
+                                Tools.noTime = true;
+                                break;
+                            case "no-sol":
+                                Tools.noSolution = true;
+                                break;
+                            case "fronts":
+                                Tools.printFront = true;
+                                break;
+                            case "trace":
+                                Tools.out = System.out;
+                                break;
+                            case "temperature":
+                                Tools.t = Double.parseDouble(data[1]);
+                                break;
+                            case "alpha":
+                                Tools.alpha = Double.parseDouble(data[1]);
+                                break;
+                            case "objective":
+                                Tools.fxId = Integer.parseInt(data[1]);
+                                break;
+                            case "constant":
+                                Tools.c = Double.parseDouble(data[1]);
+                                break;
+                            case "reparator":
+                                Tools.repId = Integer.parseInt(data[1]);
+                                break;
+                            case "CUcomparator":
+                                Tools.cuNodeComparatorId = Integer.parseInt(data[1]);
+                                break;
+                            default:
+                                System.out.println(String.format("No option avaliable for: %s", data[0]));
+                                break;
+                        }
                     }
                 }
             }
-            br.close();
-            if (algId == 2 && !isFully) {
+            if (algId == 9) {
+                Tools.isFully = false;
+            }
+            if (algId == 2 && !Tools.isFully) {
                 algId = 3;
-            } else if (algId == 3 && isFully) {
+            } else if (algId == 3 && Tools.isFully) {
                 algId = 2;
-            } else if (Tools.FxId >= 5 && Tools.FxId < 8) {
+            } else if (Tools.fxId >= 5 && Tools.fxId < 8) {
                 algId = 5;
-            } else if (algId > 3 && algId < 5 || algId == 9) {
-                if (numIterations == -1) {
-                    System.out.println("No iterations in configuration file!!");
-                    return false;
-                }
-//                if (algId == 9) {
-//                    isFully = false; // path representation
-//                    Tools.repId = 2;
-//                    Tools.init = 2;
-//                }
+            } else if ((algId == 4 || algId == 9) && numIterations == -1) {
+                System.out.println("No iterations in configuration file!!");
+                return false;
             }
         } else {
             return false;
@@ -529,216 +527,236 @@ public class Runner implements Serializable {
 
     private void runAlgorithm() throws IOException {
         long startTime;
-        EvaluationFunction Fx;
+        EvaluationFunction fx;
         switch (algId) {
             case 1:
                 if (outFile == null) {
-                    if (isFully) {
+                    if (Tools.isFully) {
                         outFile = "sol_full_ex";
                     } else {
                         outFile = "sol_path_ex";
                     }
                 }
                 if (!Tools.noSolution) {
-                    solutionFile = new File(String.format("%s.out", outFile));
+                    solutionFile = new File(String.format(OUT_FORMAT, outFile));
                 }
                 if (!Tools.noTime) {
-                    timeFile = new File(String.format("%s_time.out", outFile));
+                    timeFile = new File(String.format(TIME_FORMAT, outFile));
                 }
                 startTime = System.nanoTime();
-                problemInstance = new ProblemInstance(utils.getNodes(), utils.getLinks(), functionalSplits, utils.getPaths(), utils.getRequests(), utils.getCUs(), utils.getDUs(), utils.getE(), utils.getMaxVirtualDUs(), utils.getMaxVirtualCUs(), isFully ? 3 : 2);
+                problemInstance = new ProblemInstance(utils.getNodes(), utils.getLinks(), splitsReq, utils.getPaths(), utils.getRequests(), utils.getCUs(), utils.getDUs(), utils.getE(), utils.getMaxVirtualDUs(), utils.getMaxVirtualCUs(), Tools.isFully ? 3 : 2);
                 utils.loadBoundaries(problemInstance);
-                Fx = getObjectiveFunction(Tools.FxId);
+                fx = getObjectiveFunction(Tools.fxId);
                 if (Tools.runOnlineVersion) {
                     function = new LoCAndUoLAndAcc(problemInstance, w1, w2, w3, Tools.isMaximization);
                 }
-                runExhaustiveAlgorithm(Fx, startTime);
+                runExhaustiveAlgorithm(fx, startTime);
                 break;
             case 2:
                 if (outFile == null) {
                     outFile = "sol_full_ga";
                 }
                 if (!Tools.noSolution) {
-                    solutionFile = new File(String.format("%s.out", outFile));
+                    solutionFile = new File(String.format(OUT_FORMAT, outFile));
                 }
                 if (!Tools.noTime) {
-                    timeFile = new File(String.format("%s_time.out", outFile));
+                    timeFile = new File(String.format(TIME_FORMAT, outFile));
                 }
                 startTime = System.nanoTime();
-                problemInstance = new ProblemInstance(utils.getNodes(), utils.getLinks(), functionalSplits, utils.getPaths(), utils.getRequests(), utils.getCUs(), utils.getDUs(), utils.getE(), utils.getMaxVirtualDUs(), utils.getMaxVirtualCUs(), 3);
+                problemInstance = new ProblemInstance(utils.getNodes(), utils.getLinks(), splitsReq, utils.getPaths(), utils.getRequests(), utils.getCUs(), utils.getDUs(), utils.getE(), utils.getMaxVirtualDUs(), utils.getMaxVirtualCUs(), 3);
                 utils.loadBoundaries(problemInstance);
-                Fx = getObjectiveFunction(Tools.FxId);
+                fx = getObjectiveFunction(Tools.fxId);
                 if (Tools.runOnlineVersion) {
                     function = new LoCAndUoLAndAcc(problemInstance, w1, w2, w3, Tools.isMaximization);
                 }
-                runMultiChoisesAlgorithm(Fx, startTime);
+                runMultiChoisesAlgorithm(fx, startTime);
                 break;
             case 3:
                 if (outFile == null) {
                     outFile = "sol_path_ga";
                 }
                 if (!Tools.noSolution) {
-                    solutionFile = new File(String.format("%s.out", outFile));
+                    solutionFile = new File(String.format(OUT_FORMAT, outFile));
                 }
                 if (!Tools.noTime) {
-                    timeFile = new File(String.format("%s_time.out", outFile));
+                    timeFile = new File(String.format(TIME_FORMAT, outFile));
                 }
                 startTime = System.nanoTime();
-                problemInstance = new ProblemInstance(utils.getNodes(), utils.getLinks(), functionalSplits, utils.getPaths(), utils.getRequests(), utils.getCUs(), utils.getDUs(), utils.getE(), utils.getMaxVirtualDUs(), utils.getMaxVirtualCUs(), 2);
+                problemInstance = new ProblemInstance(utils.getNodes(), utils.getLinks(), splitsReq, utils.getPaths(), utils.getRequests(), utils.getCUs(), utils.getDUs(), utils.getE(), utils.getMaxVirtualDUs(), utils.getMaxVirtualCUs(), 2);
                 utils.loadBoundaries(problemInstance);
-                Fx = getObjectiveFunction(Tools.FxId);
+                fx = getObjectiveFunction(Tools.fxId);
                 if (Tools.runOnlineVersion) {
                     function = new LoCAndUoLAndAcc(problemInstance, w1, w2, w3, Tools.isMaximization);
                 }
-                runPathChoisesAlgorithm(Fx, startTime);
+                runPathChoisesAlgorithm(fx, startTime);
                 break;
             case 4:
                 if (outFile == null) {
-                    outFile = isFully ? "sol_full_ge" : "sol_path_ge";
+                    outFile = Tools.isFully ? "sol_full_ge" : "sol_path_ge";
                 }
                 if (!Tools.noSolution) {
-                    solutionFile = new File(String.format("%s.out", outFile));
+                    solutionFile = new File(String.format(OUT_FORMAT, outFile));
                 }
                 if (!Tools.noTime) {
-                    timeFile = new File(String.format("%s_time.out", outFile));
+                    timeFile = new File(String.format(TIME_FORMAT, outFile));
                 }
                 startTime = System.nanoTime();
-                problemInstance = new ProblemInstance(utils.getNodes(), utils.getLinks(), functionalSplits, utils.getPaths(), utils.getRequests(), utils.getCUs(), utils.getDUs(), utils.getE(), utils.getMaxVirtualDUs(), utils.getMaxVirtualCUs(), isFully ? 3 : 2);
+                problemInstance = new ProblemInstance(utils.getNodes(), utils.getLinks(), splitsReq, utils.getPaths(), utils.getRequests(), utils.getCUs(), utils.getDUs(), utils.getE(), utils.getMaxVirtualDUs(), utils.getMaxVirtualCUs(), Tools.isFully ? 3 : 2);
                 utils.loadBoundaries(problemInstance);
-                Fx = getObjectiveFunction(Tools.FxId);
+                fx = getObjectiveFunction(Tools.fxId);
                 if (Tools.runOnlineVersion) {
                     function = new LoCAndUoLAndAcc(problemInstance, w1, w2, w3, Tools.isMaximization);
+                    Tools.printFront = false;
                 }
-                runGeneticAlgorithm(Fx, startTime);
+                runGeneticAlgorithm(fx, startTime);
                 break;
             case 5:
                 if (outFile == null) {
-                    outFile = isFully ? "sol_full_moea" : "sol_path_moea";
+                    outFile = Tools.isFully ? "sol_full_moea" : "sol_path_moea";
                 }
                 if (!Tools.noSolution) {
-                    solutionFile = new File(String.format("%s.out", outFile));
+                    solutionFile = new File(String.format(OUT_FORMAT, outFile));
                 }
                 if (!Tools.noTime) {
-                    timeFile = new File(String.format("%s_time.out", outFile));
+                    timeFile = new File(String.format(TIME_FORMAT, outFile));
                 }
                 startTime = System.nanoTime();
-                problemInstance = new ProblemInstance(utils.getNodes(), utils.getLinks(), functionalSplits, utils.getPaths(), utils.getRequests(), utils.getCUs(), utils.getDUs(), utils.getE(), utils.getMaxVirtualDUs(), utils.getMaxVirtualCUs(), isFully ? 3 : 2);
+                problemInstance = new ProblemInstance(utils.getNodes(), utils.getLinks(), splitsReq, utils.getPaths(), utils.getRequests(), utils.getCUs(), utils.getDUs(), utils.getE(), utils.getMaxVirtualDUs(), utils.getMaxVirtualCUs(), Tools.isFully ? 3 : 2);
                 utils.loadBoundaries(problemInstance);
-                if (Tools.FxId <= 4) {
-                    switch (Tools.FxId) {
+                if (Tools.fxId <= 4) {
+                    switch (Tools.fxId) {
                         case 0:
-                            Tools.FxId = 5;
+                            Tools.fxId = 5;
                             break;
                         case 1:
                         case 2:
-                            Tools.FxId = 6;
+                            Tools.fxId = 6;
                             break;
                         case 3:
                         case 4:
-                            Tools.FxId = 7;
+                            Tools.fxId = 7;
                             break;
                     }
                 }
-                Fx = getObjectiveFunction(Tools.FxId);
+                fx = getObjectiveFunction(Tools.fxId);
                 if (Tools.runOnlineVersion) {
                     function = new LoCAndUoLAndAcc(problemInstance, w1, w2, w3, Tools.isMaximization);
                 }
-                runMOEA(Fx, startTime);
+                runMOEA(fx, startTime);
                 break;
             case 6:
                 if (outFile == null) {
                     outFile = "sol_full_ch";
                 }
                 if (!Tools.noSolution) {
-                    solutionFile = new File(String.format("%s.out", outFile));
+                    solutionFile = new File(String.format(OUT_FORMAT, outFile));
                 }
                 if (!Tools.noTime) {
-                    timeFile = new File(String.format("%s_time.out", outFile));
+                    timeFile = new File(String.format(TIME_FORMAT, outFile));
                 }
                 startTime = System.nanoTime();
-                problemInstance = new ProblemInstance(utils.getNodes(), utils.getLinks(), functionalSplits, utils.getPaths(), utils.getRequests(), utils.getCUs(), utils.getDUs(), utils.getE(), utils.getMaxVirtualDUs(), utils.getMaxVirtualCUs(), 3);
+                problemInstance = new ProblemInstance(utils.getNodes(), utils.getLinks(), splitsReq, utils.getPaths(), utils.getRequests(), utils.getCUs(), utils.getDUs(), utils.getE(), utils.getMaxVirtualDUs(), utils.getMaxVirtualCUs(), 3);
                 utils.loadBoundaries(problemInstance);
-                Fx = getObjectiveFunction(Tools.FxId);
+                fx = getObjectiveFunction(Tools.fxId);
                 if (Tools.runOnlineVersion) {
                     function = new LoCAndUoLAndAcc(problemInstance, w1, w2, w3, Tools.isMaximization);
                 }
-                runFullChoisesAlgorithm(Fx, startTime);
+                runFullChoisesAlgorithm(fx, startTime);
                 break;
             case 7:
                 if (outFile == null) {
                     outFile = "sol_rand_ch";
                 }
                 if (!Tools.noSolution) {
-                    solutionFile = new File(String.format("%s.out", outFile));
+                    solutionFile = new File(String.format(OUT_FORMAT, outFile));
                 }
                 if (!Tools.noTime) {
-                    timeFile = new File(String.format("%s_time.out", outFile));
+                    timeFile = new File(String.format(TIME_FORMAT, outFile));
                 }
                 startTime = System.nanoTime();
-                problemInstance = new ProblemInstance(utils.getNodes(), utils.getLinks(), functionalSplits, utils.getPaths(), utils.getRequests(), utils.getCUs(), utils.getDUs(), utils.getE(), utils.getMaxVirtualDUs(), utils.getMaxVirtualCUs(), 3);
+                problemInstance = new ProblemInstance(utils.getNodes(), utils.getLinks(), splitsReq, utils.getPaths(), utils.getRequests(), utils.getCUs(), utils.getDUs(), utils.getE(), utils.getMaxVirtualDUs(), utils.getMaxVirtualCUs(), 3);
                 utils.loadBoundaries(problemInstance);
-                Fx = getObjectiveFunction(Tools.FxId);
+                fx = getObjectiveFunction(Tools.fxId);
                 if (Tools.runOnlineVersion) {
                     function = new LoCAndUoLAndAcc(problemInstance, w1, w2, w3, Tools.isMaximization);
                 }
-                runRandomChoisesAlgorithm(Fx, startTime);
+                runRandomChoisesAlgorithm(fx, startTime);
                 break;
             case 8:
                 if (outFile == null) {
                     outFile = "sol_new_gre";
                 }
                 if (!Tools.noSolution) {
-                    solutionFile = new File(String.format("%s.out", outFile));
+                    solutionFile = new File(String.format(OUT_FORMAT, outFile));
                 }
                 if (!Tools.noTime) {
-                    timeFile = new File(String.format("%s_time.out", outFile));
+                    timeFile = new File(String.format(TIME_FORMAT, outFile));
                 }
                 startTime = System.nanoTime();
-                problemInstance = new ProblemInstance(utils.getNodes(), utils.getLinks(), functionalSplits, utils.getPaths(), utils.getRequests(), utils.getCUs(), utils.getDUs(), utils.getE(), utils.getMaxVirtualDUs(), utils.getMaxVirtualCUs(), 3);
+                problemInstance = new ProblemInstance(utils.getNodes(), utils.getLinks(), splitsReq, utils.getPaths(), utils.getRequests(), utils.getCUs(), utils.getDUs(), utils.getE(), utils.getMaxVirtualDUs(), utils.getMaxVirtualCUs(), 3);
                 utils.loadBoundaries(problemInstance);
-                Fx = getObjectiveFunction(Tools.FxId);
+                fx = getObjectiveFunction(Tools.fxId);
                 if (Tools.runOnlineVersion) {
                     function = new LoCAndUoLAndAcc(problemInstance, w1, w2, w3, Tools.isMaximization);
                 }
-                runNewGreedyAlgorithm(Fx, startTime);
+                runNewGreedyAlgorithm(fx, startTime);
                 break;
             case 9:
                 if (outFile == null) {
                     outFile = "sol_new_GA";
                 }
                 if (!Tools.noSolution) {
-                    solutionFile = new File(String.format("%s.out", outFile));
+                    solutionFile = new File(String.format(OUT_FORMAT, outFile));
                 }
                 if (!Tools.noTime) {
-                    timeFile = new File(String.format("%s_time.out", outFile));
+                    timeFile = new File(String.format(TIME_FORMAT, outFile));
                 }
                 startTime = System.nanoTime();
-                problemInstance = new ProblemInstance(utils.getNodes(), utils.getLinks(), functionalSplits, utils.getPaths(), utils.getRequests(), utils.getCUs(), utils.getDUs(), utils.getE(), utils.getMaxVirtualDUs(), utils.getMaxVirtualCUs(), isFully ? 3 : 2);
+                problemInstance = new ProblemInstance(utils.getNodes(), utils.getLinks(), splitsReq, utils.getPaths(), utils.getRequests(), utils.getCUs(), utils.getDUs(), utils.getE(), utils.getMaxVirtualDUs(), utils.getMaxVirtualCUs(), Tools.isFully ? 3 : 2);
                 utils.loadBoundaries(problemInstance);
-                Fx = getObjectiveFunction(Tools.FxId);
+                fx = getObjectiveFunction(Tools.fxId);
                 if (Tools.runOnlineVersion) {
                     function = new LoCAndUoLAndAcc(problemInstance, w1, w2, w3, Tools.isMaximization);
                 }
-                runNewGeneticAlgorithm(Fx, startTime);
+                runNewGeneticAlgorithm(fx, startTime);
                 break;
             case 10:
                 if (outFile == null) {
                     outFile = "sol_IS";
                 }
                 if (!Tools.noSolution) {
-                    solutionFile = new File(String.format("%s.out", outFile));
+                    solutionFile = new File(String.format(OUT_FORMAT, outFile));
                 }
                 if (!Tools.noTime) {
-                    timeFile = new File(String.format("%s_time.out", outFile));
+                    timeFile = new File(String.format(TIME_FORMAT, outFile));
                 }
                 startTime = System.nanoTime();
-                problemInstance = new ProblemInstance(utils.getNodes(), utils.getLinks(), functionalSplits, utils.getPaths(), utils.getRequests(), utils.getCUs(), utils.getDUs(), utils.getE(), utils.getMaxVirtualDUs(), utils.getMaxVirtualCUs(), isFully ? 3 : 2);
+                problemInstance = new ProblemInstance(utils.getNodes(), utils.getLinks(), splitsReq, utils.getPaths(), utils.getRequests(), utils.getCUs(), utils.getDUs(), utils.getE(), utils.getMaxVirtualDUs(), utils.getMaxVirtualCUs(), Tools.isFully ? 3 : 2);
                 utils.loadBoundaries(problemInstance);
-                Fx = getObjectiveFunction(Tools.FxId);
+                fx = getObjectiveFunction(Tools.fxId);
                 if (Tools.runOnlineVersion) {
                     function = new LoCAndUoLAndAcc(problemInstance, w1, w2, w3, Tools.isMaximization);
                 }
-                runIterativeSearchAlgorithm(Fx, startTime);
+                runIterativeSearchAlgorithm(fx, startTime);
+                break;
+            case 11:
+                if (outFile == null) {
+                    outFile = "sol_splitRANheu";
+                }
+                if (!Tools.noSolution) {
+                    solutionFile = new File(String.format(OUT_FORMAT, outFile));
+                }
+                if (!Tools.noTime) {
+                    timeFile = new File(String.format(TIME_FORMAT, outFile));
+                }
+                startTime = System.nanoTime();
+                problemInstance = new ProblemInstance(utils.getNodes(), utils.getLinks(), splitsReq, utils.getPaths(), utils.getRequests(), utils.getCUs(), utils.getDUs(), utils.getE(), utils.getMaxVirtualDUs(), utils.getMaxVirtualCUs(), Tools.isFully ? 3 : 2);
+                utils.loadBoundaries(problemInstance);
+                fx = getObjectiveFunction(Tools.fxId);
+                if (Tools.runOnlineVersion) {
+                    function = new LoCAndUoLAndAcc(problemInstance, w1, w2, w3, Tools.isMaximization);
+                }
+                runSplitRANHeu(fx, startTime);
                 break;
             default:
                 System.out.println(String.format("\nAlgorithm [%d] not found !!\n", algId));
@@ -750,18 +768,18 @@ public class Runner implements Serializable {
         long timeElapsed;
         GreedyAlgorithm alg = new PathChoicesGreedyAlgorithm(new PathComparator(), new VirtualLinkComparator(), new RequestComparator(), problemInstance, fx);
         if (Tools.out != null) {
-            Tools.ECHO = true;
+            Tools.echo = true;
         }
         MonoObjectiveSolution solution = alg.run();
         timeElapsed = System.nanoTime() - startTime;
         if (Tools.out != null) {
-            Tools.ECHO = false;
+            Tools.echo = false;
         }
-        double timeMS = (double) timeElapsed / 1000000.;
+        double timeMS = timeElapsed / 1000000.;
         if (Tools.runOnlineVersion) {
             markRequest((MatrixSolution) solution);
         }
-        storeResults(String.format("[%s][%s][%s] Seed: %d #Iterations: %d Elapsed Time: %f ms EFO: %d\n", graphFile, requestFolder, pathsFile, utils.getSeed(), 1, timeMS, fx.EFO()), solution, timeMS);
+        storeResults(String.format(GREEDY_TIME_FORMAT, graphFile, requestFolder, pathsFile, utils.getSeed(), 1, timeMS, fx.EFO()), solution, timeMS);
     }
 
     private void runMultiChoisesAlgorithm(EvaluationFunction fx, long startTime) throws IOException {
@@ -770,43 +788,41 @@ public class Runner implements Serializable {
         NodeFittestResourcesComparator CUsComparator = new NodeFittestResourcesComparator();
         GreedyAlgorithm alg = new MultiChoicesGreedyAlgorithm(new RequestComparator(), virtualNodeComparator, virtualNodeComparator, CUsComparator, new NodeDistanceComparator(), new PathComparator(), problemInstance, fx);
         if (Tools.out != null) {
-            Tools.ECHO = true;
+            Tools.echo = true;
         }
         MonoObjectiveSolution solution = alg.run();
         timeElapsed = System.nanoTime() - startTime;
         if (Tools.out != null) {
-            Tools.ECHO = false;
+            Tools.echo = false;
         }
-        double timeMS = (double) timeElapsed / 1000000.;
+        double timeMS = timeElapsed / 1000000.;
         if (Tools.runOnlineVersion) {
             markRequest((MatrixSolution) solution);
         }
-        storeResults(String.format("[%s][%s][%s] Seed: %d #Iterations: %d Elapsed Time: %f ms EFO: %d\n", graphFile, requestFolder, pathsFile, utils.getSeed(), 1, timeMS, fx.EFO()), solution, timeMS);
+        storeResults(String.format(GREEDY_TIME_FORMAT, graphFile, requestFolder, pathsFile, utils.getSeed(), 1, timeMS, fx.EFO()), solution, timeMS);
     }
 
     private void runExhaustiveAlgorithm(EvaluationFunction fx, long startTime) throws IOException {
         long timeElapsed;
         ExhaustiveSearch alg = new ExhaustiveSearch(problemInstance, fx);
         if (Tools.out != null) {
-            Tools.ECHO = true;
+            Tools.echo = true;
         }
         MonoObjectiveSolution solution = alg.run();
         timeElapsed = System.nanoTime() - startTime;
         if (Tools.out != null) {
-            Tools.ECHO = false;
+            Tools.echo = false;
         }
-        double timeMS = (double) timeElapsed / 1000000.;
+        double timeMS = timeElapsed / 1000000.;
         if (Tools.runOnlineVersion) {
             markRequest((MatrixSolution) solution);
         }
-        storeResults(String.format("[%s][%s][%s] Seed: %d #Iterations: %d Elapsed Time: %f ms EFO: %d\n", graphFile, requestFolder, pathsFile, utils.getSeed(), alg.getNumberOfIterations(), timeMS, fx.EFO()), solution, timeMS);
+        storeResults(String.format(GREEDY_TIME_FORMAT, graphFile, requestFolder, pathsFile, utils.getSeed(), alg.getNumberOfIterations(), timeMS, fx.EFO()), solution, timeMS);
     }
 
     private void runGeneticAlgorithm(EvaluationFunction fx, long startTime) throws IOException {
         long timeElapsed;
         Random rand = utils.getRandom();
-        //Selection<MatrixSolution> selection = new Elitism(fx.isMaximization());
-        //Mutation<MatrixSolution> mutation = new OneBit(rand, instance);
         Selection<MatrixSolution> selection = new StochasticRanking(fx.isMaximization(), rand, Tools.rank);
         Mutation<MatrixSolution> mutation = new MultiBit(rand, problemInstance);
         Crossover<MatrixSolution> cross = (Crossover<MatrixSolution>) getCrossoverOperator(rand, Tools.crxId);
@@ -814,21 +830,21 @@ public class Runner implements Serializable {
         Initialization<MatrixSolution> init = (Initialization<MatrixSolution>) getInitialization(rand, Tools.init);
         GeneticAlgorithm alg = new GeneticAlgorithm(problemInstance, fx, mutation, cross, selection, init, rep, rand, numIterations, popSize);
         if (Tools.out != null) {
-            Tools.ECHO = true;
+            Tools.echo = true;
         }
         MonoObjectiveSolution solution = alg.run();
         timeElapsed = System.nanoTime() - startTime;
         if (Tools.out != null) {
-            Tools.ECHO = false;
+            Tools.echo = false;
         }
-        double timeMS = (double) timeElapsed / 1000000.;
+        double timeMS = timeElapsed / 1000000.;
         if (Tools.printFront) {
             storeFronts(alg.paretoFront);
         }
         if (Tools.runOnlineVersion) {
             markRequest((MatrixSolution) solution);
         }
-        storeResults(String.format("[%s][%s][%s] Seed: %d #Iterations: %d Elapsed Time: %f ms EFO: %d #NotValid: %d\n", graphFile, requestFolder, pathsFile, utils.getSeed(), alg.getNumIterations(), timeMS, fx.EFO(), alg.getNumNotValidSolutions()), solution, timeMS);
+        storeResults(String.format(POPULATION_TIME_FORMAT, graphFile, requestFolder, pathsFile, utils.getSeed(), alg.getNumIterations(), timeMS, fx.EFO(), alg.getNumNotValidSolutions()), solution, timeMS);
     }
 
     public void runGurobi(String[] args) {
@@ -840,7 +856,7 @@ public class Runner implements Serializable {
             gurobiSolver.initValues();// Establecer valores / matrices de costos
             gurobiSolver.initObjectiveFunction();// funcion objetivo
             gurobiSolver.initConstraints();// Constraints
-            gurobiSolver.execModel(String.format("%s.lp", args[2]), Tools.ECHO, Tools.ECHO, args[2]);// guardar, ejecutar el modelo
+            gurobiSolver.execModel(String.format("%s.lp", args[2]), Tools.echo, Tools.echo, args[2]);// guardar, ejecutar el modelo
             gurobiSolver.clear();//limpiar elementos
         } catch (Exception e) {
             e.printStackTrace(System.err);
@@ -850,7 +866,7 @@ public class Runner implements Serializable {
     private void runMOEA(EvaluationFunction Fx, long startTime) throws IOException {
         long timeElapsed;
         int numObjs = 2;
-        if (Tools.FxId == 7) {
+        if (Tools.fxId == 7) {
             numObjs = 3;
         }
         Random rand = utils.getRandom();
@@ -862,27 +878,22 @@ public class Runner implements Serializable {
         Initialization init = Tools.init == 1 ? (problemInstance.isFullyRepresentated() ? new MOGF(problemInstance, popSize, rand, numObjs) : new MOGP(problemInstance, popSize, rand, numObjs)) : new MORand(problemInstance, popSize, rand, numObjs);
         MOEA alg = new MOEA(problemInstance, fx, rand, mutation, cross, selection, init, rep, numIterations, popSize, numObjs);
         if (Tools.out != null) {
-            Tools.ECHO = true;
+            Tools.echo = true;
         }
         List<MultiObjectiveMatrixSolution> fronts = alg.run();
         timeElapsed = System.nanoTime() - startTime;
         if (Tools.out != null) {
-            Tools.ECHO = false;
+            Tools.echo = false;
         }
-        double timeMS = (double) timeElapsed / 1000000.;
+        double timeMS = timeElapsed / 1000000.;
         if (Tools.printFront) {
-            Collections.sort(fronts, new Comparator<MultiObjectiveMatrixSolution>() {
-                @Override
-                public int compare(MultiObjectiveMatrixSolution o1, MultiObjectiveMatrixSolution o2) {
-                    return Double.compare(-o1.getObjective(), -o2.getObjective());
-                }
-            });
+            Collections.sort(fronts, (MultiObjectiveMatrixSolution o1, MultiObjectiveMatrixSolution o2) -> Double.compare(-o1.getObjective(), -o2.getObjective()));
             storeFronts(fronts);
         }
         if (Tools.runOnlineVersion) {
             markRequest((MatrixSolution) alg.getBest());
         }
-        storeResults(String.format("[%s][%s][%s] Seed: %d #Iterations: %d Elapsed Time: %f ms EFO: %d #NotValid: %d\n", graphFile, requestFolder, pathsFile, utils.getSeed(), alg.getNumIterations(), timeMS, fx.EFO(), alg.getNumNotValidSolutions()), alg.getBest(), timeMS);
+        storeResults(String.format(POPULATION_TIME_FORMAT, graphFile, requestFolder, pathsFile, utils.getSeed(), alg.getNumIterations(), timeMS, fx.EFO(), alg.getNumNotValidSolutions()), alg.getBest(), timeMS);
     }
 
     private void runFullChoisesAlgorithm(EvaluationFunction fx, long startTime) throws IOException {
@@ -890,23 +901,23 @@ public class Runner implements Serializable {
         RequestComparator requestComparator = (RequestComparator) getComparator(0);
         VirtualNodeComparator vCUComparator = (VirtualNodeComparator) getComparator(3);
         VirtualNodeComparator vDUComparator = (VirtualNodeComparator) getComparator(4);
-        NodeComparator CUsComparator = (NodeComparator) getComparator(1);
-        NodeComparator DUsComparator = (NodeComparator) getComparator(2);
+        NodeComparator cuComparator = (NodeComparator) getComparator(1);
+        NodeComparator duComparator = (NodeComparator) getComparator(2);
         Comparator<PathSolution> pathComparator = getComparator(5);
-        GreedyAlgorithm alg = new FullChoicesGreedyAlgorithm(requestComparator, vCUComparator, vDUComparator, CUsComparator, DUsComparator, pathComparator, problemInstance, fx);
+        GreedyAlgorithm alg = new FullChoicesGreedyAlgorithm(requestComparator, vCUComparator, vDUComparator, cuComparator, duComparator, pathComparator, problemInstance, fx);
         if (Tools.out != null) {
-            Tools.ECHO = true;
+            Tools.echo = true;
         }
         MonoObjectiveSolution solution = alg.run();
         timeElapsed = System.nanoTime() - startTime;
         if (Tools.out != null) {
-            Tools.ECHO = false;
+            Tools.echo = false;
         }
-        double timeMS = (double) timeElapsed / 1000000.;
+        double timeMS = timeElapsed / 1000000.;
         if (Tools.runOnlineVersion) {
             markRequest((MatrixSolution) solution);
         }
-        storeResults(String.format("[%s][%s][%s] Seed: %d #Iterations: %d Elapsed Time: %f ms EFO: %d\n", graphFile, requestFolder, pathsFile, utils.getSeed(), 1, timeMS, fx.EFO()), solution, timeMS);
+        storeResults(String.format(GREEDY_TIME_FORMAT, graphFile, requestFolder, pathsFile, utils.getSeed(), 1, timeMS, fx.EFO()), solution, timeMS);
     }
 
     private void runRandomChoisesAlgorithm(EvaluationFunction fx, long startTime) throws IOException {
@@ -914,36 +925,36 @@ public class Runner implements Serializable {
         Random rand = utils.getRandom();
         GreedyAlgorithm alg = new RandomChoicesAlgorithm(rand, problemInstance, fx);
         if (Tools.out != null) {
-            Tools.ECHO = true;
+            Tools.echo = true;
         }
         MonoObjectiveSolution solution = alg.run();
         timeElapsed = System.nanoTime() - startTime;
         if (Tools.out != null) {
-            Tools.ECHO = false;
+            Tools.echo = false;
         }
-        double timeMS = (double) timeElapsed / 1000000.;
+        double timeMS = timeElapsed / 1000000.;
         if (Tools.runOnlineVersion) {
             markRequest((MatrixSolution) solution);
         }
-        storeResults(String.format("[%s][%s][%s] Seed: %d #Iterations: %d Elapsed Time: %f ms EFO: %d\n", graphFile, requestFolder, pathsFile, utils.getSeed(), 1, timeMS, fx.EFO()), solution, timeMS);
+        storeResults(String.format(GREEDY_TIME_FORMAT, graphFile, requestFolder, pathsFile, utils.getSeed(), 1, timeMS, fx.EFO()), solution, timeMS);
     }
 
     private void runNewGreedyAlgorithm(EvaluationFunction fx, long startTime) throws IOException {
         long timeElapsed;
         GreedyAlgorithm alg = new NewOnlineGreedy(residualNetwork, problemInstance, fx);
         if (Tools.out != null) {
-            Tools.ECHO = true;
+            Tools.echo = true;
         }
         MonoObjectiveSolution solution = alg.run();
         timeElapsed = System.nanoTime() - startTime;
         if (Tools.out != null) {
-            Tools.ECHO = false;
+            Tools.echo = false;
         }
-        double timeMS = (double) timeElapsed / 1000000.;
+        double timeMS = timeElapsed / 1000000.;
         if (Tools.runOnlineVersion) {
             markRequest((MatrixSolution) solution);
         }
-        storeResults(String.format("[%s][%s][%s] Seed: %d #Iterations: %d Elapsed Time: %f ms EFO: %d\n", graphFile, requestFolder, pathsFile, utils.getSeed(), 1, timeMS, fx.EFO()), solution, timeMS);
+        storeResults(String.format(GREEDY_TIME_FORMAT, graphFile, requestFolder, pathsFile, utils.getSeed(), 1, timeMS, fx.EFO()), solution, timeMS);
     }
 
     private void runNewGeneticAlgorithm(EvaluationFunction fx, long startTime) throws IOException {
@@ -955,18 +966,18 @@ public class Runner implements Serializable {
         Initialization<MatrixSolution> init = (Initialization<MatrixSolution>) getInitialization(rand, 2/*Tools.init*/);
         AlternativeGA alg = new AlternativeGA(problemInstance, fx, mutation, cross, init, rep, rand, numIterations, popSize);
         if (Tools.out != null) {
-            Tools.ECHO = true;
+            Tools.echo = true;
         }
         MonoObjectiveSolution solution = alg.run();
         timeElapsed = System.nanoTime() - startTime;
         if (Tools.out != null) {
-            Tools.ECHO = false;
+            Tools.echo = false;
         }
-        double timeMS = (double) timeElapsed / 1000000.;
+        double timeMS = timeElapsed / 1000000.;
         if (Tools.runOnlineVersion) {
             markRequest((MatrixSolution) solution);
         }
-        storeResults(String.format("[%s][%s][%s] Seed: %d #Iterations: %d Elapsed Time: %f ms EFO: %d #NotValid: %d\n", graphFile, requestFolder, pathsFile, utils.getSeed(), alg.getNumIterations(), timeMS, fx.EFO(), alg.getNumNotValidSolutions()), solution, timeMS);
+        storeResults(String.format(POPULATION_TIME_FORMAT, graphFile, requestFolder, pathsFile, utils.getSeed(), alg.getNumIterations(), timeMS, fx.EFO(), alg.getNumNotValidSolutions()), solution, timeMS);
     }
 
     private void runIterativeSearchAlgorithm(EvaluationFunction fx, long startTime) throws IOException {
@@ -974,21 +985,39 @@ public class Runner implements Serializable {
         Random rand = utils.getRandom();
         IterativeSearch alg = new IterativeSearch(false, problemInstance, fx, rand, numIterations, popSize);
         if (Tools.out != null) {
-            Tools.ECHO = true;
+            Tools.echo = true;
         }
         MonoObjectiveSolution solution = alg.run();
         timeElapsed = System.nanoTime() - startTime;
         if (Tools.out != null) {
-            Tools.ECHO = false;
+            Tools.echo = false;
         }
-        double timeMS = (double) timeElapsed / 1000000.;
+        double timeMS = timeElapsed / 1000000.;
         if (Tools.runOnlineVersion) {
             markRequest((MatrixSolution) solution);
         }
-        storeResults(String.format("[%s][%s][%s] Seed: %d #Iterations: %d Elapsed Time: %f ms EFO: %d #NotValid: %d\n", graphFile, requestFolder, pathsFile, utils.getSeed(), alg.getNumIterations(), timeMS, fx.EFO(), alg.getNumNotValidSolutions()), solution, timeMS);
+        storeResults(String.format(POPULATION_TIME_FORMAT, graphFile, requestFolder, pathsFile, utils.getSeed(), alg.getNumIterations(), timeMS, fx.EFO(), alg.getNumNotValidSolutions()), solution, timeMS);
     }
 
-    private void storeFronts(List fronts) throws IOException {
+    private void runSplitRANHeu(EvaluationFunction fx, long startTime) throws IOException {
+        long timeElapsed;
+        GreedyAlgorithm alg = new SplitRANHeu(problemInstance, fx);
+        if (Tools.out != null) {
+            Tools.echo = true;
+        }
+        MonoObjectiveSolution solution = alg.run();
+        timeElapsed = System.nanoTime() - startTime;
+        if (Tools.out != null) {
+            Tools.echo = false;
+        }
+        double timeMS = timeElapsed / 1000000.;
+        if (Tools.runOnlineVersion) {
+            markRequest((MatrixSolution) solution);
+        }
+        storeResults(String.format(GREEDY_TIME_FORMAT, graphFile, requestFolder, pathsFile, utils.getSeed(), 1, timeMS, fx.EFO()), solution, timeMS);
+    }
+
+    private void storeFronts(List<? extends Solution> fronts) throws IOException {
         if (sbFronts == null) {
             sbFronts = new StringBuilder();
         }
@@ -996,13 +1025,13 @@ public class Runner implements Serializable {
             sbConf = new StringBuilder();
         }
         int i = 0;
-        for (Iterator it = fronts.iterator(); it.hasNext();) {
-            String s = it.next().toString();
+        for (Solution it : fronts) {
+            String s = it.toString();
             String[] data = s.split("@");
             if (data != null && data.length > 1) {
-                sbFronts.append(String.format("%d %s\n", ++i, data[0]));
-                sbConf.append(String.format("%d %s\n", i, data[1]));
-                if (Tools.ECHO) {
+                sbFronts.append(String.format("%d %s", ++i, data[0].concat("\n")));
+                sbConf.append(String.format("%d %s", i, data[1].concat("\n")));
+                if (Tools.echo) {
                     System.out.println(String.format("Fr.%d| %s", i, s));
                 }
             }
@@ -1011,7 +1040,7 @@ public class Runner implements Serializable {
 
     private void markRequest(MatrixSolution solution) {
         if (solution != null) {
-            if (solution.isValid || solution.gn == 0) {
+            if (solution.isValid && solution.gn == 0) {
                 for (int i = 0; i < solution.accepted.length; i++) {
                     utils.getRequests()[i].accepted = solution.accepted[i];
                 }
@@ -1034,7 +1063,7 @@ public class Runner implements Serializable {
             if (solution != null) {
                 sol = String.format("[%s][%s][%s] %s\n", graphFile, requestFolder, pathsFile, solution.toString());
             } else {
-                sol = String.format("[%s][%s][%s] No valid solution\n", graphFile, requestFolder, pathsFile);
+                sol = String.format("[%s][%s][%s] No valid solution", graphFile, requestFolder, pathsFile).concat("\n");
             }
             if (solutionFile != null) {
                 sbSolution.append(sol);
@@ -1042,7 +1071,7 @@ public class Runner implements Serializable {
             if (timeFile != null) {
                 sbTimes.append(time);
             }
-            if (Tools.ECHO) {
+            if (Tools.echo) {
                 System.out.print(time);
                 System.out.println(sol);
             }
@@ -1051,16 +1080,16 @@ public class Runner implements Serializable {
                 MultiObjectiveMatrixSolution m = new MultiObjectiveMatrixSolution((MatrixSolution) solution, 3);
                 sbMetrics.append(String.format("%f\t%f\t%d\t%f\t%d\t%b\n", function.eval(m, 0), function.eval(m, 1), m.nAccepted, timeMS, m.accepted.length, m.isValid));
             } else {
-                sbMetrics.append(String.format("0\t0\t0\t%f\n", timeMS));
+                sbMetrics.append(String.format("0\t0\t0\t%f\t \tfalse", timeMS).concat("\n"));
             }
-            sbConfig.append(String.format("%s\n", getConfiguration()));
+            sbConfig.append(getConfiguration().concat("\n"));
         }
     }
 
     /**
      *
-     * @param fx 0: DoC*(1-UoL), 1: DoC*(1-UoL)+acc, 2: C*DoC*(1-UoL)+acc/q, 3:
-     * C*DoC*(1-UoL)+acc, 4: acc/q, 5: [DoC,UoL], 6: [DoC*(1-UoL),acc/q], 7:
+     * @param fx 0: DoC*(1-UoL), 1: DoC*(1-UoL)+acc, 2: c*DoC*(1-UoL)+acc/q, 3:
+     * c*DoC*(1-UoL)+acc, 4: acc/q, 5: [DoC,UoL], 6: [DoC*(1-UoL),acc/q], 7:
      * [DoC,UoL,acc/q]
      * @return
      */
@@ -1071,9 +1100,9 @@ public class Runner implements Serializable {
             case 1:
                 return new RequestObjectiveFunction(problemInstance, w1, w2, w3, Tools.isMaximization);
             case 2:
-                return new MinorRequestObjectiveFunction(problemInstance, w1, w2, w3, Tools.isMaximization, Tools.C);
+                return new MinorRequestObjectiveFunction(problemInstance, w1, w2, w3, Tools.isMaximization, Tools.c);
             case 3:
-                return new SimilarObjectiveFunction(problemInstance, w1, w2, w3, Tools.isMaximization, Tools.C);
+                return new SimilarObjectiveFunction(problemInstance, w1, w2, w3, Tools.isMaximization, Tools.c);
             case 4:
                 return new AcceptanceRate(problemInstance, w1, w2, w3, Tools.isMaximization);
             case 5:
@@ -1198,7 +1227,7 @@ public class Runner implements Serializable {
         }
     }
 
-    public void runOnlineVersion(String configFile, String paramsFilePath, String outputName) throws FileNotFoundException, IOException {
+    public void runOnlineVersion(String configFile, String paramsFilePath, String outputName) throws IOException {
         if (!loadParameters(paramsFilePath)) {
             return;
         }
@@ -1208,101 +1237,106 @@ public class Runner implements Serializable {
         if (Tools.out != null) {
             setOutput();
         }
-        if (Tools.ECHO) {
+        if (Tools.echo) {
             System.out.println(String.format("Reading scenario: %s", configFile));
         }
-        BufferedReader br = new BufferedReader(new FileReader(new File(configFile)));
-        String line = br.readLine();//read substrate network at begining of file
-        Tools.K = 3;
-        graphFile = line;//path of substrate network
-        pathsFile = new StringBuilder().append(line).append(".k3.paths").toString();//path to store the paths
-        requestList = new ArrayList<>();
-        requestName = new ArrayList<>();
-        w3 = 1.0 - w1 - w2;
-        if (utils.loadGraph(new File(graphFile), g1, g2, g3) && loadPaths()) {//if network and paths are loaded then
-            if (Tools.ECHO) {
-                System.out.printf("nDUs: %d, nCUs: %d\n", utils.getDUs().size(), utils.getCUs().size());
-                System.out.println();
-            }
-            //read the requests
-            int reqIdx = 0, maxVirtualDUs, maxVirtualCUs;
-            while ((line = br.readLine()) != null) {
-                String[] data = line.split("\t");
-                switch (data[1]) {
-                    case "add":
-                        maxVirtualDUs = 0;
-                        maxVirtualCUs = 0;
-                        requestFolder = data[2];
-                        String[] totalRequestsAtTime = data[2].split(",");
-                        Request[] requests = new Request[totalRequestsAtTime.length];
-                        for (int i = 0, n, maxN = 0; i < totalRequestsAtTime.length; i++) {
-                            requestList.add(new Request());
-                            requestName.add(totalRequestsAtTime[i]);
-                            if (utils.loadRequest(new File(totalRequestsAtTime[i]), requestList.get(reqIdx))) {
-                                requests[i] = requestList.get(reqIdx);
-                                for (VirtualNode vNode : requests[i].vNodes) {
-                                    vNode.ant = 0;
+        try (BufferedReader br = new BufferedReader(new FileReader(new File(configFile)))) {
+            String line = br.readLine();//read substrate network at begining of file
+            Tools.k = 3;
+            graphFile = line;//path of substrate network
+            pathsFile = new StringBuilder().append(line).append(".k3.paths").toString();//path to store the paths
+            List<Request> requestList = new ArrayList<>();
+            List<String> requestName = new ArrayList<>();
+            w3 = 1.0 - w1 - w2;
+            if (utils.loadGraph(new File(graphFile), g1, g2, g3, true) && loadPaths()) {//if network and paths are loaded then
+                if (Tools.echo) {
+                    System.out.printf("nDUs: %d, nCUs: %d\n", utils.getDUs().size(), utils.getCUs().size());
+                    System.out.println();
+                }
+                //read the requests
+                int reqIdx = 0, maxVirtualDUs, maxVirtualCUs;
+                while ((line = br.readLine()) != null) {
+                    String[] data = line.split("\t");
+                    switch (data[1]) {
+                        case "add":
+                            int n,
+                             maxN = 0;
+                            maxVirtualDUs = 0;
+                            maxVirtualCUs = 0;
+                            requestFolder = data[2];
+                            String[] totalRequestsAtTime = data[2].split(",");
+                            Request[] requests = new Request[totalRequestsAtTime.length];
+                            for (int i = 0; i < totalRequestsAtTime.length; i++) {
+                                requestList.add(new Request());
+                                requestName.add(totalRequestsAtTime[i]);
+                                if (utils.loadRequest(new File(totalRequestsAtTime[i]), requestList.get(reqIdx))) {
+                                    requests[i] = requestList.get(reqIdx);
+                                    for (VirtualNode vNode : requests[i].vNodes) {
+                                        vNode.ant = 0;
+                                    }
+                                    n = requests[i].vCUs.size() + requests[i].vDUs.size() * 3;
+                                    if (requests[i].vCUs.size() > maxVirtualCUs) {
+                                        maxVirtualCUs = requests[i].vCUs.size();
+                                    }
+                                    if (requests[i].vDUs.size() > maxVirtualDUs) {
+                                        maxVirtualDUs = requests[i].vDUs.size();
+                                    }
+                                    if (maxN < n) {
+                                        maxN = n;
+                                    }
+                                    if (Tools.echo) {
+                                        System.out.println(String.format("%s->Request_[%d] in buffer, vCUs:%d, vDUs:%d", data[0], reqIdx + 1, requestList.get(reqIdx).vCUs.size(), requestList.get(reqIdx).vDUs.size()));
+                                    }
+                                } else {
+                                    System.out.println(String.format("ERROR AL CARGAR PETICION: %s", requestName.get(reqIdx)));
                                 }
-                                n = requests[i].vCUs.size() + requests[i].vDUs.size() * 3;
-                                if (requests[i].vCUs.size() > maxVirtualCUs) {
-                                    maxVirtualCUs = requests[i].vCUs.size();
-                                }
-                                if (requests[i].vDUs.size() > maxVirtualDUs) {
-                                    maxVirtualDUs = requests[i].vDUs.size();
-                                }
-                                if (maxN < n) {
-                                    maxN = n;
-                                }
-                                if (Tools.ECHO) {
-                                    System.out.println(String.format("%s->Request_[%d] in buffer, vCUs:%d, vDUs:%d", data[0], reqIdx + 1, requestList.get(reqIdx).vCUs.size(), requestList.get(reqIdx).vDUs.size()));
+                                reqIdx++;
+                            }
+                            utils.setMaxVirtualCUs(maxVirtualCUs);
+                            utils.setMaxVirtualDUs(maxVirtualDUs);
+                            utils.setRequests(requests);
+                            if (problemInstance != null) {
+                                residualNetwork = problemInstance.copySubInstance();
+                                utils.setPaths(residualNetwork.mPaths);
+                                utils.setCUs(residualNetwork.CUs);
+                                utils.setDUs(residualNetwork.DUs);
+                                utils.setNodes(residualNetwork.nodes);
+                                residualNetwork = problemInstance;
+                                problemInstance.allPathsFromDUs = utils.getAllPathsFromDUs();
+                                runAlgorithm();
+                                problemInstance = residualNetwork;
+                                utils.setPaths(residualNetwork.mPaths);
+                                utils.setCUs(residualNetwork.CUs);
+                                utils.setDUs(residualNetwork.DUs);
+                                utils.setNodes(residualNetwork.nodes);
+                                for (Request request : requests) {
+                                    if (request.accepted) {
+                                        updateResources(request);
+                                    }
                                 }
                             } else {
-                                System.out.println(String.format("ERROR AL CARGAR PETICION: %s", requestName.get(reqIdx)));
+                                runAlgorithm();
                             }
-                            reqIdx++;
-                        }
-                        utils.setMaxVirtualCUs(maxVirtualCUs);
-                        utils.setMaxVirtualDUs(maxVirtualDUs);
-                        utils.setRequests(requests);
-                        if (problemInstance != null) {
-                            residualNetwork = problemInstance.copySubInstance();
-                            utils.setPaths(residualNetwork.mPaths);
-                            utils.setCUs(residualNetwork.CUs);
-                            utils.setDUs(residualNetwork.DUs);
-                            utils.setNodes(residualNetwork.nodes);
-                            residualNetwork = problemInstance;
-                            runAlgorithm();
-                            problemInstance = residualNetwork;
-                            utils.setPaths(residualNetwork.mPaths);
-                            utils.setCUs(residualNetwork.CUs);
-                            utils.setDUs(residualNetwork.DUs);
-                            utils.setNodes(residualNetwork.nodes);
-                            for (Request request : requests) {
-                                if (request.accepted) {
-                                    updateResources(request);
+                            break;
+                        case "release":
+                            int i;
+                            for (String requestFilePath : data[2].split(",")) {
+                                if ((i = requestName.indexOf(requestFilePath)) != -1) {
+                                    if (Tools.echo) {
+                                        System.out.println(String.format("%s-> release Request_[%d]", data[0], i + 1));
+                                    }
+                                    releaseResources(requestList.get(i));
                                 }
                             }
-                        } else {
-                            runAlgorithm();
-                        }
-                        break;
-                    case "release":
-                        int i;
-                        for (String requestFilePath : data[2].split(",")) {
-                            if ((i = requestName.indexOf(requestFilePath)) != -1) {
-                                if (Tools.ECHO) {
-                                    System.out.println(String.format("%s-> release Request_[%d]", data[0], i + 1));
-                                }
-                                releaseResources(requestList.get(i));
-                            }
-                        }
-                        break;
+                            break;
+                        default:
+                            break;
+                    }
                 }
+                saveResults();
+            } else {
+                System.out.println("Unable to load substrate network!!");
             }
-            br.close();
-            saveResults();
-        } else {
-            System.out.println("Unable to load substrate network!!");
         }
     }
 
@@ -1311,7 +1345,7 @@ public class Runner implements Serializable {
             for (VirtualNode vCU : request.vCUs) {
                 utils.getNodes()[vCU.indxNode].usedPRC -= vCU.prc;
                 if (utils.getNodes()[vCU.indxNode].usedPRC < 0) {
-                    if (Tools.ECHO) {
+                    if (Tools.echo) {
                         System.out.println(String.format("vCU prc %s", utils.getNodes()[vCU.indxNode]));
                     }
                     utils.getNodes()[vCU.indxNode].usedPRC = 0;
@@ -1323,33 +1357,33 @@ public class Runner implements Serializable {
                 }
                 utils.getNodes()[vDU.indxNode].usedPRC -= vDU.prc;
                 if (utils.getNodes()[vDU.indxNode].usedPRC < 0) {
-                    if (Tools.ECHO) {
+                    if (Tools.echo) {
                         System.out.println(String.format("prc %s", utils.getNodes()[vDU.indxNode]));
                     }
                     utils.getNodes()[vDU.indxNode].usedPRC = 0;
                 }
                 utils.getNodes()[vDU.indxNode].usedANT -= vDU.ant;
                 if (utils.getNodes()[vDU.indxNode].usedANT < 0) {
-                    if (Tools.ECHO) {
+                    if (Tools.echo) {
                         System.out.println(String.format("ant %s", utils.getNodes()[vDU.indxNode]));
                     }
                     utils.getNodes()[vDU.indxNode].usedANT = 0;
                 }
                 utils.getNodes()[vDU.indxNode].usedPRB -= vDU.prb;
                 if (utils.getNodes()[vDU.indxNode].usedPRB < 0) {
-                    if (Tools.ECHO) {
+                    if (Tools.echo) {
                         System.out.println(String.format("prb %s", utils.getNodes()[vDU.indxNode]));
                     }
                     utils.getNodes()[vDU.indxNode].usedPRB = 0;
                 }
             }
             for (VirtualLink vLink : request.virtualLinks) {
-                if (isFully) {
+                if (Tools.isFully) {
                     int src = request.vNodes[vLink.source].indxNode, dst = request.vNodes[vLink.destination].indxNode;
                     for (Link link : utils.getPaths()[src][dst].get(vLink.indxPath).getLinks()) {
                         link.usedBw -= vLink.bw;
                         if (link.usedBw < 0) {
-                            if (Tools.ECHO) {
+                            if (Tools.echo) {
                                 System.out.println(String.format("bw %s", link));
                             }
                             link.usedBw = 0;
@@ -1359,7 +1393,7 @@ public class Runner implements Serializable {
                     for (Link link : utils.getPaths()[0][0].get(vLink.indxPath).getLinks()) {
                         link.usedBw -= vLink.bw;
                         if (link.usedBw < 0) {
-                            if (Tools.ECHO) {
+                            if (Tools.echo) {
                                 System.out.println(String.format("bw %s", link));
                             }
                             link.usedBw = 0;
@@ -1367,10 +1401,10 @@ public class Runner implements Serializable {
                     }
                 }
             }
-            if (Tools.ECHO) {
+            if (Tools.echo) {
                 System.out.println("Resources released successfully\n");
             }
-        } else if (Tools.ECHO) {
+        } else if (Tools.echo) {
             System.out.println("Request not acepted.");
         }
     }
@@ -1379,7 +1413,7 @@ public class Runner implements Serializable {
         for (VirtualNode vCU : request.vCUs) {
             utils.getNodes()[vCU.indxNode].usedPRC += vCU.prc;
             if (utils.getNodes()[vCU.indxNode].usedPRC > utils.getNodes()[vCU.indxNode].prc) {
-                if (Tools.ECHO) {
+                if (Tools.echo) {
                     System.out.println(String.format("CU prc %s", utils.getNodes()[vCU.indxNode]));
                 }
                 utils.getNodes()[vCU.indxNode].usedPRC = utils.getNodes()[vCU.indxNode].prc;
@@ -1391,33 +1425,33 @@ public class Runner implements Serializable {
             }
             utils.getNodes()[vDU.indxNode].usedPRC += vDU.prc;
             if (utils.getNodes()[vDU.indxNode].usedPRC > utils.getNodes()[vDU.indxNode].prc) {
-                if (Tools.ECHO) {
+                if (Tools.echo) {
                     System.out.println(String.format("DU prc %s", utils.getNodes()[vDU.indxNode]));
                 }
                 utils.getNodes()[vDU.indxNode].usedPRC = utils.getNodes()[vDU.indxNode].prc;
             }
             utils.getNodes()[vDU.indxNode].usedANT += vDU.ant;
             if (utils.getNodes()[vDU.indxNode].usedANT > utils.getNodes()[vDU.indxNode].ant) {
-                if (Tools.ECHO) {
+                if (Tools.echo) {
                     System.out.println(String.format("DU ant %s", utils.getNodes()[vDU.indxNode]));
                 }
                 utils.getNodes()[vDU.indxNode].usedANT = utils.getNodes()[vDU.indxNode].ant;
             }
             utils.getNodes()[vDU.indxNode].usedPRB += vDU.prb;
             if (utils.getNodes()[vDU.indxNode].usedPRB > utils.getNodes()[vDU.indxNode].prb) {
-                if (Tools.ECHO) {
+                if (Tools.echo) {
                     System.out.println(String.format("DU prb %s", utils.getNodes()[vDU.indxNode]));
                 }
                 utils.getNodes()[vDU.indxNode].usedPRB = utils.getNodes()[vDU.indxNode].prb;
             }
         }
         for (VirtualLink vLink : request.virtualLinks) {
-            if (isFully) {
+            if (Tools.isFully) {
                 int src = request.vNodes[vLink.source].indxNode, dst = request.vNodes[vLink.destination].indxNode;
                 for (Link link : utils.getPaths()[src][dst].get(vLink.indxPath).getLinks()) {
                     link.usedBw += vLink.bw;
                     if (link.usedBw > link.bw) {
-                        if (Tools.ECHO) {
+                        if (Tools.echo) {
                             System.out.println(String.format("Link bw %s", link));
                         }
                         link.usedBw = link.bw;
@@ -1427,7 +1461,7 @@ public class Runner implements Serializable {
                 for (Link link : utils.getPaths()[0][0].get(vLink.indxPath).getLinks()) {
                     link.usedBw += vLink.bw;
                     if (link.usedBw > link.bw) {
-                        if (Tools.ECHO) {
+                        if (Tools.echo) {
                             System.out.println(String.format("Link bw %s", link));
                         }
                         link.usedBw = link.bw;
@@ -1439,24 +1473,24 @@ public class Runner implements Serializable {
 
     private String getConfiguration() {
         if (algId == 4 || algId == 5 || algId == 9) {
-            int elle = utils.getRequests().length * (problemInstance.step * utils.getMaxVirtualDUs() + (isFully ? utils.getMaxVirtualCUs() : 0));
+            int elle = utils.getRequests().length * (problemInstance.step * utils.getMaxVirtualDUs() + (Tools.isFully ? utils.getMaxVirtualCUs() : 0));
             return String.format("algId:%d\tcrxId:%d\trepId:%d\tK:%d\tInit:%d\t"
                     + "mut:%.0f/%d\tcrx:%.2f\trnk:%.3f\tnIt:%d\tPop:%d\t"
                     + "seed:%d\trepr:%d\tC:%.2f\tFx:%d\tCUcomp:%d",
-                    algId, Tools.crxId, Tools.repId, Tools.K, Tools.init,
+                    algId, Tools.crxId, Tools.repId, Tools.k, Tools.init,
                     Tools.mut, elle, Tools.cross, Tools.rank, numIterations,
-                    popSize, utils.getSeed(), (isFully ? 1 : 0), Tools.C,
-                    Tools.FxId, Tools.cuNodeComparatorId);
+                    popSize, utils.getSeed(), (Tools.isFully ? 1 : 0), Tools.c,
+                    Tools.fxId, Tools.cuNodeComparatorId);
         }
         if (algId == 6) {
             return String.format("algId:%d\tK:%d\tseed:%d\trepr:%d\tC:%.2f\t"
                     + "Fx:%d\tCUcomp:%d",
-                    algId, Tools.K, utils.getSeed(), (isFully ? 1 : 0), Tools.C,
-                    Tools.FxId, Tools.cuNodeComparatorId);
+                    algId, Tools.k, utils.getSeed(), (Tools.isFully ? 1 : 0), Tools.c,
+                    Tools.fxId, Tools.cuNodeComparatorId);
         }
         return String.format("algId:%d\tK:%d\tseed:%d\trepr:%d\tC:%.2f\tFx:%d",
-                algId, Tools.K, utils.getSeed(), (isFully ? 1 : 0), Tools.C,
-                Tools.FxId);
+                algId, Tools.k, utils.getSeed(), (Tools.isFully ? 1 : 0), Tools.c,
+                Tools.fxId);
     }
 
     private void saveResults() throws IOException {
@@ -1464,7 +1498,7 @@ public class Runner implements Serializable {
             try (Writer ws1 = new FileWriter(String.format("%s.generations", outFile), true)) {
                 ws1.write(sbGenerations.toString());
             }
-            Tools.ECHO = true;
+            Tools.echo = true;
             System.setOut(Tools.out);
         }
         if (sbFronts != null && sbConf != null) {
@@ -1495,5 +1529,4 @@ public class Runner implements Serializable {
             }
         }
     }
-
 }
