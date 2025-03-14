@@ -6,3 +6,6 @@
  The source code of the application can be found in the 'sources' folder. You can modify the code to remove the references to Gurobi and thus be able to use the algorithms described in the article.
 
  For licensing reasons, we are unable to provide the Gurobi libraries. To download Gurobi you must visit: https://www.gurobi.com/downloads/
+
+# Update 7.6.0
+ Scripts for generating test instances and simulation scenarios have been added. These are located in the "online" directory.
