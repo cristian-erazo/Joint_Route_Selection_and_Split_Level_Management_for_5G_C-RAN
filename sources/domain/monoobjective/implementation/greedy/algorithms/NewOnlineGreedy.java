@@ -152,6 +152,9 @@ public class NewOnlineGreedy extends GreedyAlgorithm {
         best.setnAccepted(nAccepted);
         best.gn = instance.validate(best);
         fx.evaluate(best);
+        if (Tools.echo) {
+            System.out.println(String.format("[%d] Best: %s", best.it, best));
+        }
         return best;
     }
 

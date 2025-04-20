@@ -35,7 +35,7 @@ public class Tools implements Serializable {
     /**
      * Software current version.
      */
-    public static final String VERSION = "7.6.0";
+    public static final String VERSION = "7.6.3";
 
     private static Tools instance = null;
     /**
@@ -127,6 +127,7 @@ public class Tools implements Serializable {
     protected static int vDuNodeComparatorId = 1;
     protected static int vCuNodeComparatorId = 1;
     protected static int requestComparatorId = 1;
+    protected static boolean showSolution = false;
 
     private int e;
     private long seed;
@@ -152,7 +153,7 @@ public class Tools implements Serializable {
         this.nodes = null;
         this.links = null;
         this.requests = null;
-        allPathsFromDUs = HashMap.newHashMap(100);
+        allPathsFromDUs = new HashMap<>();
     }
 
     /**
@@ -293,7 +294,7 @@ public class Tools implements Serializable {
                             }
                         }
                         for (Node DU : nDUs) {
-                            allPathsFromDUs.put(DU.nodePosition, HashMap.newHashMap(nCUs.size()));
+                            allPathsFromDUs.put(DU.nodePosition, new HashMap<>()); /* HashMap.newHashMap(nCUs.size()) */
                         }
                         return true;
                     } catch (Exception ex) {

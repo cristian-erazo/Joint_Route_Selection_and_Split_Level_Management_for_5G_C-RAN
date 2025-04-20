@@ -4,7 +4,6 @@ import domain.monoobjective.implementation.MatrixSolution;
 import domain.paths.PathSolution;
 import domain.problem.graph.Flow;
 import domain.problem.graph.Link;
-import domain.problem.graph.Location;
 import domain.problem.graph.Node;
 import domain.problem.virtual.Request;
 import domain.problem.virtual.VirtualLink;

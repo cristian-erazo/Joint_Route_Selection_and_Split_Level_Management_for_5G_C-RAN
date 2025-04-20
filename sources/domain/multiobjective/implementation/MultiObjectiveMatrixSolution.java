@@ -153,12 +153,6 @@ public class MultiObjectiveMatrixSolution extends MatrixSolution implements Mult
         StringBuilder sb = new StringBuilder();
         int acc = 0;
         sb.append(String.format("[%d] ", it));
-        /*if (rank != -1) {
-            sb.append(String.format("Rank: %d ", rank));
-        }*/
- /*if (crowdingDistance != -1) {
-            sb.append(String.format("CWD: %.2g ", crowdingDistance));
-        }*/
         if (objectives != null) {
             for (int i = 0; i < nObjectives; i++) {
                 sb.append(String.format("Ob%d: %f ", i + 1, objectives[i]));

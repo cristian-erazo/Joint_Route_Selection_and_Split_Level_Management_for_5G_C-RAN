@@ -37,14 +37,7 @@ public class RandomReparator<T extends MatrixSolution> implements Reparator<T> {
             int i, j, iter = 0, maxIter = 50;
             T s = (T) solution.copy();
             while (iter < maxIter) {
-                for (i = 0; i < size; i++) {
-                    System.arraycopy(solution.data[i], 0, s.data[i], 0, col);
-                }
-                System.arraycopy(solution.accepted, 0, s.accepted, 0, size);
-                s.gn = solution.gn;
-                s.isValid = solution.isValid;
-                s.nAccepted = solution.nAccepted;
-                s.quality = solution.quality;
+                copySolution(solution, s);
                 i = rand.nextInt(size);
                 j = rand.nextInt(instance.requests[i].vDUs.size());
                 if (rand.nextDouble() < 0.02) {
@@ -61,15 +54,7 @@ public class RandomReparator<T extends MatrixSolution> implements Reparator<T> {
                 }
                 s.gn = instance.validate(s);
                 if (s.gn < solution.gn) {
-                    //solution = (T) s.copy();
-                    System.arraycopy(s.accepted, 0, solution.accepted, 0, size);
-                    for (i = 0; i < size; i++) {
-                        System.arraycopy(s.data[i], 0, solution.data[i], 0, col);
-                    }
-                    solution.gn = s.gn;
-                    solution.isValid = s.isValid;
-                    solution.nAccepted = s.nAccepted;
-                    solution.quality = s.quality;
+                    copySolution(s, solution);
                     solution.setObjective(-1.);
                     if (solution.gn == 0) {
                         solution.isValid = true;
@@ -80,6 +65,17 @@ public class RandomReparator<T extends MatrixSolution> implements Reparator<T> {
             }
         }
         return solution;
+    }
+
+    private void copySolution(T src, T dest) {
+        for (int i = 0; i < size; i++) {
+            System.arraycopy(src.data[i], 0, dest.data[i], 0, col);
+        }
+        System.arraycopy(src.accepted, 0, dest.accepted, 0, size);
+        dest.gn = src.gn;
+        dest.isValid = src.isValid;
+        dest.nAccepted = src.nAccepted;
+        dest.quality = src.quality;
     }
 
     @Override
@@ -97,16 +93,26 @@ public class RandomReparator<T extends MatrixSolution> implements Reparator<T> {
             return instance.min.data[q][j + instance.pathPosition] + rand.nextInt(instance.max.data[q][j + instance.pathPosition] - instance.min.data[q][j + instance.pathPosition]);
         } else {
             loadValidDUs(instance.requests[q].vDUs.get(j));
-            int id = availables.get(rand.nextInt(availables.size())).nodePosition;
-            availables.clear();
-            int totalCUs = instance.allPathsFromDUs.get(id).size();
-            int randCU = rand.nextInt(totalCUs);
-            int numPaths = instance.allPathsFromDUs.get(id).get(randCU).size();
-            return instance.mPaths[0][0].indexOf(instance.allPathsFromDUs.get(id).get(randCU).get(rand.nextInt(numPaths)));
+            int tot = availables.size();
+            if (tot > 0) {
+                int idDU = availables.get(rand.nextInt(tot)).nodePosition;
+                Object[] allCUs = instance.allPathsFromDUs.get(idDU).keySet().toArray();
+                if (allCUs.length > 0) {
+                    Integer idCU = (Integer) allCUs[rand.nextInt(allCUs.length)];
+                    int totalPaths = instance.allPathsFromDUs.get(idDU).get(idCU).size();
+                    if (totalPaths > 0) {
+                        return instance.mPaths[0][0].indexOf(instance.allPathsFromDUs.get(idDU).get(idCU).get(rand.nextInt(totalPaths)));
+                    }
+                }
+            }
+            return rand.nextInt(instance.mPaths[0][0].size());
         }
     }
 
     private void loadValidDUs(VirtualNode vDU) {
+        if (!availables.isEmpty()) {
+            availables.clear();
+        }
         for (Node DU : instance.DUs) {
             if (ProblemInstance.validateAssignament(vDU, DU)) {
                 availables.add(DU);

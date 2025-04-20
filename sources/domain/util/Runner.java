@@ -403,6 +403,8 @@ public class Runner implements Serializable {
                 Tools.printFront = true;
             } else if ("-CUcomparator".compareToIgnoreCase(args[i]) == 0) {
                 Tools.cuNodeComparatorId = Integer.parseInt(args[++i]);
+            } else if("-show-solution".compareToIgnoreCase(args[i]) == 0) {
+                Tools.showSolution = true;
             }
             i++;
         }
@@ -498,6 +500,9 @@ public class Runner implements Serializable {
                                 break;
                             case "CUcomparator":
                                 Tools.cuNodeComparatorId = Integer.parseInt(data[1]);
+                                break;
+                            case "show-solution":
+                                Tools.showSolution = true;
                                 break;
                             default:
                                 System.out.println(String.format("No option avaliable for: %s", data[0]));
@@ -1082,6 +1087,13 @@ public class Runner implements Serializable {
             } else {
                 sbMetrics.append(String.format("0\t0\t0\t%f\t \tfalse", timeMS).concat("\n"));
             }
+            if (Tools.showSolution) {
+                if (solution != null && solution.getGn() == 0) {
+                    sbSolution.append(String.format("%s\n", solution.toString()));
+                } else {
+                    sbSolution.append("Not valid solution\n");
+                }
+            }
             sbConfig.append(getConfiguration().concat("\n"));
         }
     }
@@ -1236,6 +1248,9 @@ public class Runner implements Serializable {
         sbConfig = new StringBuilder();
         if (Tools.out != null) {
             setOutput();
+        }
+        if(Tools.showSolution) {
+            sbSolution = new StringBuilder(512);
         }
         if (Tools.echo) {
             System.out.println(String.format("Reading scenario: %s", configFile));
@@ -1526,6 +1541,9 @@ public class Runner implements Serializable {
             }
             try (Writer wm2 = new FileWriter(String.format("%s.settings", outFile), true)) {
                 wm2.write(sbConfig.toString());
+            }
+            try (Writer wm3 = new FileWriter(String.format("%s.solutions", outFile), true)) {
+                wm3.write(sbSolution.toString());
             }
         }
     }

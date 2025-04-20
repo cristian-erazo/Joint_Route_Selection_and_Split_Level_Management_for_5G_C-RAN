@@ -1,5 +1,3 @@
-/*
- */
 package domain.monoobjective.implementation.greedy.algorithms;
 
 import domain.EvaluationFunction;
@@ -183,14 +181,16 @@ public class SplitRANHeu extends GreedyAlgorithm {
 
     private boolean assignPath(int q, VirtualLink vLink, VirtualNode v1, VirtualNode v2, int splitIndx) {
         best.data[q][vLink.indx] = vLink.indxPath = -1;
-        for (int i = 0; i < instance.mPaths[v1.indxNode][v2.indxNode].size(); i++) {
-            if (ProblemInstance.validateAssignament(instance.mPaths[v1.indxNode][v2.indxNode].get(i), instance.splits[splitIndx], vLink)) {
-                assignResources(instance.mPaths[v1.indxNode][v2.indxNode].get(i), vLink, q, i, splitIndx);
-                return true;
-            }// flow splitting unnecessary
-            /* else if (i == 0 && splitTraffic(v1.indxNode, v2.indxNode, vLink, q, i, splitIndx)) {// split the traffic
+        if (instance.mPaths[v1.indxNode][v2.indxNode] != null) {
+            for (int i = 0; i < instance.mPaths[v1.indxNode][v2.indxNode].size(); i++) {
+                if (ProblemInstance.validateAssignament(instance.mPaths[v1.indxNode][v2.indxNode].get(i), instance.splits[splitIndx], vLink)) {
+                    assignResources(instance.mPaths[v1.indxNode][v2.indxNode].get(i), vLink, q, i, splitIndx);
+                    return true;
+                }// flow splitting unnecessary
+                /* else if (i == 0 && splitTraffic(v1.indxNode, v2.indxNode, vLink, q, i, splitIndx)) {// split the traffic
                 return true;
             }*/
+            }
         }
         return false;
     }

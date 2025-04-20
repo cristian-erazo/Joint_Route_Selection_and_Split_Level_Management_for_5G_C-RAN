@@ -1,7 +1,6 @@
 package domain.monoobjective.implementation.metaheuristics.algorithms.initialization;
 
 import domain.monoobjective.implementation.MatrixSolution;
-import domain.monoobjective.implementation.greedy.comparators.PathComparator;
 import domain.monoobjective.implementation.greedy.comparators.RequestComparator;
 import domain.monoobjective.implementation.greedy.comparators.VirtualLinkComparator;
 import domain.paths.PathSolution;
