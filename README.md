@@ -7,5 +7,5 @@
 
  For licensing reasons, we are unable to provide the Gurobi libraries. To download Gurobi you must visit: https://www.gurobi.com/downloads/
 
-# Update 7.6.0
+# Update 7.6.3
  Scripts for generating test instances and simulation scenarios have been added. These are located in the "online" folder.
