@@ -239,15 +239,15 @@ def main(args):
 	#     0        1           2          3        4        5           6           7        8          9
 	#    'EA'    'EAgre'    'GAf4'      'GRE'   'GREnew'   'MA'        'SRh'
 	#    'EA'    'EAgre'    'GAf3'      'GAf4'  'GRE'      'GREnew'    'MA'        'SRh'
-	labels = [names[4],names[1],names[7],names[3],names[2],names[5],names[6]]
+	labels = [names[4],names[7],names[5],names[1],names[3],names[2],names[6]]
 	#labels = [names[3],names[1],names[6],names[2],names[4],names[5]]
 	print(labels)
 
 	# azul> #36648B rojo> #8B1A1A verde> #698B22
 	#alg_labels  = ["$GR$","$EA$","$SR_{h}$","$GA$","$GR_{new}$","$MA$"]
 	#colors      = ['k'   ,'k'   ,'k'       ,'k'   ,'#8B1A1A'   ,'#698B22']
-	alg_labels  = ["$GR$","$EA$","$SR_{h}$","$GA$","$GA^{*}$","$GR_{new}$","$MA$"]
-	colors      = ['k'   ,'k'   ,'k'       ,'k'   ,'k'       ,'#8B1A1A'   ,'#698B22']
+	alg_labels  = ["$GR$","$SR_{h}$","$GR_{new}$","$EA$","$GA$","$GA^{*}$","$MA$"]
+	colors      = ['k'   ,'k'       ,'#8B1A1A'   ,'k'   ,'k'   ,'k'       ,'#698B22']
 
 	y_ticks_lbl = ['0.0','','0.2','','0.4','','0.6','','0.8','','1.0']
 	y_ticks = [0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]
@@ -314,7 +314,7 @@ def main(args):
 		ax.set_xlabel('Algorithms')
 		ax.tick_params(labelsize=lfsize)
 		ax.set_xticks(range(1,n+1), labels=alg_labels)
-		ax.set_ylabel("$DoC_{global} \cdot UoL_{global}$", fontsize=fsize)
+		ax.set_ylabel("$DoC_{global} \cdot UoL_{global}$", fontsize=fsize-7)
 		ax.set_yticks(y_ticks)
 		ax.set_yticklabels(y_ticks_lbl)
 		ax.set_ylim(-0.05, 1.1)
@@ -353,7 +353,7 @@ def main(args):
 		set_colors(plt, bp, colors)
 		ax.tick_params(labelsize=lfsize)
 		ax.set_xticks(range(1,n+1), labels=alg_labels)
-		ax.set_ylabel("$DoC_{global} \cdot UoL_{global}$", fontsize=fsize)
+		ax.set_ylabel("$DoC_{global} \cdot UoL_{global}$", fontsize=fsize-7)
 		ax.set_yticks(y_ticks)
 		ax.set_yticklabels(y_ticks_lbl)
 		ax.set_ylim(-0.05, 1.1)
@@ -392,7 +392,7 @@ def main(args):
 		ax.set_yscale("log")
 		ax.tick_params(labelsize=lfsize)
 		ax.set_xticks(range(1,n+1), labels=alg_labels)
-		ax.set_ylabel('$T_{avg}\ (ms)$', fontsize=fsize)
+		ax.set_ylabel('$T_{avg}\ (ms)$', fontsize=fsize-3)
 		ax.set_axisbelow(True)
 		ax.yaxis.grid(True, linestyle='-', which='major', color='lightgrey', alpha=0.5)
 		ax.xaxis.grid(False)
